@@ -1,0 +1,35 @@
+[project]
+name = "moonlighter"
+version = "0.1.0"
+description = "Use surplus Codex budget to advance side projects during configured work windows."
+readme = "README.md"
+authors = [
+    { name = "Connor Chamberlain", email = "lcvcode@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "argcomplete>=3.7.2",
+]
+
+[project.scripts]
+moon = "moonlighter:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.7",
+    "ty>=0.0.80",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ty]
