@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ty/
+.venv/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Local/editor noise
+.DS_Store
+
+# Local planning/review artifacts not needed in the repo
+FEASIBILITY_REVIEW.md
+moonlighter-review.md

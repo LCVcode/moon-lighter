@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""Print Moonlighter's current weekly budget target in one terse line."""
+
+from __future__ import annotations
+
+import shutil
+import subprocess
+import sys
+import tomllib
+from datetime import datetime, timedelta
+from pathlib import Path
+
+
+def config_reserve() -> int:
+    path = Path.home() / ".config" / "moon" / "config.toml"
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    budget = data.get("budget", {})
+    if not isinstance(budget, dict):
+        return 25
+    value = budget.get("weekly_reserve_percent", 25)
+    return value if isinstance(value, int) else 25
+
+
+def parse_usage(text: str) -> tuple[float, datetime]:
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 5 and parts[0] == "weekly" and parts[2] == "remaining":
+            remaining = float(parts[1].removesuffix("%"))
+            reset = datetime.strptime(" ".join(parts[-2:]), "%Y-%m-%d %H:%M").astimezone()
+            return remaining, reset
+    raise RuntimeError("weekly usage line not found")
+
+
+def floor(reserve: int, reset: datetime, now: datetime) -> float:
+    curve_remaining = reset - now - timedelta(days=1)
+    fraction = max(0.0, min(1.0, curve_remaining.total_seconds() / timedelta(days=6).total_seconds()))
+    return reserve + (100 - reserve) * fraction
+
+
+def main() -> int:
+    command = shutil.which("codex-usage")
+    if command is None:
+        fallback = Path(__file__).resolve().parent / "codex-usage"
+        command = str(fallback)
+    result = subprocess.run([command], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print(f"budget_target error={result.stderr.strip() or result.stdout.strip()!r}")
+        return 1
+    now = datetime.now().astimezone()
+    reserve = config_reserve()
+    remaining, reset = parse_usage(result.stdout)
+    target = floor(reserve, reset, now)
+    spendable = max(0.0, remaining - target)
+    allowed = "yes" if remaining >= target else "no"
+    print(
+        f"budget_target reserve={reserve:.0f}% target={target:.1f}% "
+        f"weekly={remaining:.1f}% spendable={spendable:.1f}% allowed={allowed}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

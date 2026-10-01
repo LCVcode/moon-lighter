@@ -1,0 +1,11 @@
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.ty
+dist
+build
+__pycache__
+*.pyc
+FEASIBILITY_REVIEW.md
+moonlighter-review.md

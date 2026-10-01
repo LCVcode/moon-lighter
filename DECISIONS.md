@@ -1,0 +1,249 @@
+# DECISIONS
+
+## User decisions
+
+- The project is named `moonlighter`.
+- The CLI command is `moon`.
+- The per-project guidance/brief file is `.moon/brief.md`.
+- Initial provider focus is Pi accessing OpenAI Codex tokens.
+- v1 runner should target Pi via a Dockerized runner using Pi RPC mode.
+- Docker is the required v1 containment backend; other backends may come later.
+- Moon remains the host-side control plane; autonomous Pi execution occurs inside ephemeral Docker containers.
+- Moon should ship/version an official runner image containing Pi, Moon workflow skills, Git, Bash, common baseline utilities, and tested runtime dependencies.
+- Initial local runner image baseline uses `docker/runner/Dockerfile`, pins Pi with `PI_VERSION=0.85.1`, and builds as `moonlighter-runner:0.1.0-dev`.
+- The configured Moon project root is mounted read/write into the container; user-global Pi skills are mounted read-only; broad host home, SSH keys, Moon config/runtime dirs, Docker socket, and unrelated repositories are not mounted.
+- The runner should aim for non-root execution, sensible host UID/GID ownership, read-only container root filesystem, writable temp dirs as needed, persistent Pi session storage, and no privileged Docker mode.
+- Pi/Codex credentials should be injected narrowly into the container; do not mount the user's entire Pi home. If bearer-token injection is unsuitable, use a Moon-specific container credential store.
+- Pi model/provider for moon runs should be configured in `~/.config/moon/config.toml`, not left to Pi defaults.
+- v1 config should require Pi provider, model, and thinking/reasoning level; only OpenAI/OpenAI Codex is supported for now.
+- Configured thinking/reasoning level must be one of Pi's known values: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, or `max`.
+- Sample config should default to OpenAI Codex with medium thinking/reasoning.
+- `moon config check` should error if the configured provider is not supported by v1.
+- Model-name validation is delegated to the agent; v1 should require a non-empty configured model and avoid live model-list checks during config validation.
+- Moonlighter should maintain one persistent resumable Pi session per project.
+- Future expansion to other providers is possible.
+- The tool should spend safe surplus only, not aggressively consume tokens.
+- Users must retain priority access to a meaningful portion of weekly tokens.
+- Weekly budget reserve should be configurable, defaulting to 25%.
+- v1 should not enforce a separate 5-hour reserve; use weekly curve plus work hours only.
+- The tool should be pausable for long periods.
+- The tool should run like a cron job; systemd timer is preferred.
+- The systemd timer wake interval should be configurable, defaulting to 30 minutes.
+- Safe spending should use a time-aware budget curve.
+- v1 weekly budget curve should be linear: spend only if weekly remaining is above expected remaining plus reserve; this may be adjusted later.
+- Automatic session duration should be calculated from the current work-hours schedule rather than a fixed default.
+- Work chunks should be configurable, defaulting to 20 minutes; exact implementation is delegated to the agent.
+- When a chunk ends, another chunk should start if budget remains available and the current time is still within configured work hours.
+- Wrap-up/status/log updates should not have a strict time limit in v1.
+- Wrap-up may use a dedicated skill/workflow such as `/moon-chunk-summary` to summarize the chunk.
+- During an automatic session, token usage should be monitored throughout.
+- Moonlighter should use available Pi functionality to check usage before and after each runner session/chunk when possible.
+- v1 should start with global `codex-usage`; Pi per-session usage support can be added later and should not block runner implementation.
+- Do not redesign the `codex-usage` budget subsystem for v1; keep parsing isolated behind a small interface.
+- If 5-hour tokens expire or weekly tokens fall below the budget curve during a session, the runner should stop making code changes, update moon/status files with a summary, write logs, and exit.
+- v1 should use best-effort resumable runner sessions for chunked automatic work; manual tick MVP remains usable if session resume is imperfect.
+- The resumable-session behavior must be revisited after real-world work, because it may need to change based on runner behavior and context overhead.
+- Moonlighter should use simple configured work hours combined with token-budget checks.
+- Work hours must support at least “every day from 2am to 4am.”
+- v1 should support multiple work-hour windows per day using a simple scheduling system.
+- Work-hour config should express days with day names such as `mon,tue,wed`.
+- Agent decision: also support simple day shorthands `daily`, `weekdays`, and `weekends` for convenience.
+- Work-hour windows like `22:00-02:00` should be allowed and interpreted as crossing midnight.
+- Overlapping work windows should be allowed; if any configured window matches, moon may run.
+- Work-hours scheduling should use the local system timezone.
+- Bare-bones v1 work-hours config is acceptable and should be improved later.
+- Work hours must be configurable via the CLI.
+- Exact work-hours CLI UX is intentionally deferred.
+- `moon status` should show whether the current time is inside a work window or no-work window, and how long that state will last assuming no config changes.
+- If currently outside work hours, `moon status` should show the next work window start time and duration.
+- `moon status` should show global pause state before work-hours info.
+- `moon status` should show last-known budget only, not perform a live budget check.
+- Budget information should appear near the bottom of `moon status`; it is relatively low importance and may be removed later.
+- `moon status` should stay concise and should not include recent automatic-run summaries by default.
+- `moon status <project>` should tersely include the last 3 run summaries.
+- v1 should not include a separate live budget command.
+- When `moon tick` runs outside configured work hours, it must not touch project directories or project `.moon/status.md` files; it may update only global/log status.
+- When globally paused, `moon tick` must not touch project directories or initialize projects; it may update only global/log status.
+- When `moon tick` runs during work hours but budget is insufficient, it must not touch project directories; it should update global status/log with the lack-of-budget reason.
+- `moon tick` should perform project discovery only after work-hours and budget checks pass.
+- `moon tick` may auto-initialize uninitialized project directories under the root, but only inside work hours and after budget passes.
+- When auto-initializing, `moon tick` should initialize all uninitialized projects, but should not run agent work on projects whose briefs still contain only the placeholder.
+- Project directories are direct children of the configured root; projects are not expected to contain nested subprojects.
+- Bare files directly under the project root should be ignored; only directories are projects.
+- Uninitialized projects are direct child directories under the project root without `.moon/`.
+- Uninitialized projects are eligible for work and should be prioritized over initialized projects; choose randomly among multiple uninitialized projects.
+- `moon status` should be read-only and should never create `.moon/`.
+- `moon status <project>` should also be read-only and report uninitialized projects without initializing them.
+- `moon status` should show uninitialized project directories under an “uninitialized” section.
+- Projects with placeholder-only `.moon/brief.md` should appear separately in status under “needs brief.”
+- `moon tick` should be silent unless errors; humans are not expected to read its normal output.
+- Projects live under one configured project root directory containing project directories.
+- Moonlighter scans that single configured project root for project directories.
+- CLI project arguments should identify projects by directory name under the configured project root.
+- Project name conflicts should be impossible in v1 because there is only one configured project root.
+- Users create a project directory and brain-dump ideas into `.moon/brief.md`.
+- If a claimed project lacks `.moon/brief.md`, moon should create one as part of standard `.moon/` initialization.
+- A newly created `.moon/brief.md` should contain a short placeholder like “Replace me with a project concept/description.”
+- `moon init <project>` should not accept initial brief text in v1; it creates the placeholder only.
+- A future/v1-considered command like `moon edit <project>` or `moon brief <project>` may open `$EDITOR` to modify `.moon/brief.md`.
+- An editor command for `.moon/brief.md` is nice-to-have, not blocking v1.
+- Placeholder-only `.moon/brief.md` should not be the only signal for whether work can proceed.
+- Moonlighter may proceed with work if the project has sufficient direction from the repository itself, such as TODO, SPEC, README, or similar files that make next steps clear.
+- Moonlighter should require some kind of direction before work, but that direction can come from `.moon/brief.md` or from project files.
+- Pi agent should decide whether a project has sufficient concrete direction to continue work, using an assessment/work prompt rather than pre-launch moon heuristics.
+- If the Pi agent finds insufficient concrete direction, it should request `needs_direction` through `.moon/agent-result.json`; if no meaningful next work exists because stated goals are met, it may request `complete`.
+- The Pi agent may request a disposition change without making code changes if appropriate, but completion requires positive evidence that goals are met.
+- When requesting meaningful disposition changes, the agent must update `.moon/status.md` and write a project log summary explaining why.
+- `.moon/state.json` is exclusively Moon-owned machine state; the Pi agent must not edit it directly.
+- The Pi agent should communicate requested state/disposition changes through `.moon/agent-result.json`, which Moon validates and consumes.
+- Moonlighter should validate `.moon/state.json` after each runner chunk; if invalid, fail/log rather than silently repairing.
+- Moonlighter should have a standard project initialization method that creates needed `.moon/` structure/files.
+- Project initialization should create `.moon/status.md` with a simple placeholder status.
+- Project initialization command/trigger UX is delegated to the agent; provide an explicit init path and avoid surprising project mutation outside work/budget-safe paths.
+- While a project is under a configured root, it is considered owned by moon.
+- Users may inspect/test/edit notes in project directories, but automatic runs may continue freely.
+- Project selection can start as random.
+- During a work window, moon may rotate to another eligible project after each chunk if budget and time remain.
+- v1 project rotation should be round-robin by last-run time; this may change later.
+- Project status/report data should live under `.moon/`, including human-readable `.moon/status.md`.
+- Project `.moon/` directories should be ignored by git, including `.moon/brief.md`.
+- Moonlighter should automatically add `.moon/` to a project's `.gitignore` when creating `.moon/`.
+- If a moon-owned project is not yet a git repository when moon initializes project state, moon should initialize git and create/update `.gitignore` with `.moon/`; moon owns the project and should manage it responsibly.
+- Project initialization should not create an initial git commit.
+- `moon release <project> <dest>` moves a project out of moon control.
+- `moon release <project> <dest>` should move the whole project directory without modification, preserving `.moon/`.
+- `moon release` should error if the destination already exists.
+- `moon claim <path>` brings a project into moon control by moving it into the configured project root.
+- `moon claim` should error if a project with the same directory name already exists under the configured root.
+- Add global and per-project pause/resume.
+- v1 pause commands should be `moon pause`, `moon resume`, `moon pause <project>`, and `moon resume <project>`.
+- v1 pause commands should not accept a reason/message; they only toggle paused/unpaused state.
+- `moon resume <project>` should clear project pause and also reactivate a completed/tabled project by clearing completion state.
+- Timed pauses/duration syntax, such as pausing a project for three weeks, are deferred to v2.
+- Automatic runs may continue even with uncommitted changes.
+- If a project has uncommitted changes before an automatic run, the agent should inspect them and pick up where the last agent left off.
+- Automatic work may run when the project has merge conflicts; the agent should try to resolve them.
+- Moonlighter/runner should automatically commit frequently when a consistent task is completed.
+- Git commits should have clear, high-quality commit messages.
+- Commit timing should be task-boundary based, not mechanically tied to chunks or sessions.
+- Before committing, the runner should make a best-effort attempt to run obvious relevant tests when practical.
+- v1 should not enforce a maximum number of commits per run.
+- v1 should never push commits to remotes automatically; this may change later.
+- `moon status` and `moon status <project>` are enough to start.
+- Every automatic run must update `.moon/status.md`.
+- Code changes are optional during a run.
+- Some projects may become complete.
+- Completed projects should be tabled and removed from rotation.
+- Completion/tabled state should live in a machine-readable JSON file under `.moon/`, not in human-readable `.moon/status.md`.
+- Users should not have a manual complete command in v1; pause and release/move are sufficient user controls.
+- Users must be able to manually put a completed/tabled project back into rotation with `moon activate <project>`.
+- `moon activate <project>` should work on uninitialized projects by initializing them, then setting completion/tabled state false and clearing project pause state.
+- Activating an uninitialized project creates the placeholder `.moon/brief.md`; the brief may be empty/placeholder, but if the project is already started and does not need a brief, moon may proceed with further work.
+- If the project `.moon/` machine state file is missing during activation, `moon activate <project>` should create it with completion/tabled state false.
+- Users must be able to update project guidance and use that update to return a project to rotation.
+- Updated guidance should primarily be detected from `.moon/brief.md` changes, but reactivation should remain manual.
+- Moonlighter must ship/provide a v1 skill or agent workflow for updating `.moon/brief.md`, especially after a grill-me session.
+- v1 should ship dedicated runner prompt/skills for work chunks, chunk summaries, and brief updates.
+- Moonlighter workflow skills should live in repo-level `skills/` during development and be bundled into the official runner image for v1 execution.
+- Automatic Pi sessions should access Moon workflow skills via explicit skill invocation/loading from the runner image; user-global skills should be mounted read-only and project-local skills trusted via `--approve`.
+- Moonlighter-generated Pi commands should pass `--approve`; moon owns its project workspaces.
+- Moon-generated Pi runs must be headless and resumable via Pi RPC mode.
+- Store both Pi session ID and Pi session file/path in `.moon/state.json`; prefer useful Pi session names including the project name when supported.
+- Pi session storage must persist outside ephemeral Docker containers.
+- Pi session loss should degrade gracefully; repository files, `.moon/status.md`, `.moon/brief.md`, and Git state are durable fallback context.
+- For human interactive use in v1, document explicit `pi --skill ...` usage for moon skills.
+- Commands such as `moon skills install` or packaging moon as a Pi package are deferred possibilities.
+- Global config should live at `~/.config/moon/config.toml`.
+- Config may be edited manually and/or bootstrapped on first run; exact setup UX remains flexible.
+- If config is missing, moon should error with clear instructions rather than silently creating config.
+- Moonlighter should provide a default/sample config that users can copy.
+- Agent decision: provide `moon config init` to copy/write the sample config to `~/.config/moon/config.toml`.
+- If `moon config init` finds an existing config, it should not overwrite; it should print the path and run/show config-check results.
+- Config validation/linting must read the config and check sensible conditions such as whether expected directories exist.
+- `moon config init` should not create the project root directory; the user must create it.
+- `moon config check` should warn if the configured project root directory does not exist.
+- For automatic `moon tick`, a missing project root is an error and should cause a nonzero exit.
+- v1 should provide `moon config check` with nice, helpful human output.
+- Commands should reuse the same config validation functionality programmatically before running.
+- The implementation should be a Python CLI with the minimum possible dependencies.
+- Installation should target `uvx` / `uv tool install` style usage.
+- The Python project skill should guide implementation defaults.
+- v1 MVP should target manual `moon tick` end-to-end first; systemd/timer support comes immediately after.
+- The first end-to-end manual `moon tick` MVP should include config, project init/discovery, budget check, resumable per-project Pi sessions, multi-project rotation in one tick, automatic commits, and status/log updates.
+- Because Pi runner mechanics are uncertain, do an early Docker/Pi RPC integration-validation spike before the full runner milestone.
+- Post-manual-tick backlog/phasing is delegated to the agent: defer systemd/timer automation, interactive skill installation UX, advanced schedule/config commands, Pi per-session usage accounting, and richer project selection until after the first manual tick MVP.
+- The token budget source must be machine-readable; Pi must be able to read token usage or a script must provide it.
+- The Pi usage extension `npm:@tian.zuo/pi-usage` is installed and seems promising for `/usage` and `/tokens`.
+- Moonlighter should rely heavily on the `codex-usage` command for tracking OpenAI Codex token usage.
+- A copy of the current `codex-usage` script should be kept in this repo as a backup/reference.
+- Moonlighter should call the installed `codex-usage` command first, then fall back to bundled `scripts/codex-usage`.
+- Missing installed `codex-usage` should not be a config-check error as long as the bundled fallback script is available.
+- `moon config check` should not call `codex-usage` or verify Pi/Codex auth; it should only care that the bundled fallback script is present.
+- Verified `codex-usage` currently reports remaining 5-hour and weekly quota plus reset times in human-readable output.
+
+## Agent decisions
+
+- Keep budget provider and runner abstractions separate.
+- Prefer pluggable usage providers to avoid hard-coupling scheduler logic to Pi/Codex internals.
+- Treat missing or unreadable budget state as fail-closed for automatic project work.
+- If `moon tick` fails to check usage/budget, it should do no project work and update global status/log rather than treating it as a hard command error.
+- `moon tick` should exit zero when skipping due to insufficient budget or usage-check failure; rejecting work below budget is expected behavior.
+- `moon tick` should exit nonzero for invalid/missing config, missing project root, internal crashes, and runner failures when no later project succeeds.
+- If one project runner fails but another project succeeds in the same tick, `moon tick` may continue and exit zero; logs must show relevant warnings/errors.
+- Completed projects should be marked in machine-readable `.moon/` JSON state, tabled, and skipped by default.
+- Surface completed/tabled projects in status output for user review, reactivation, or release.
+- Use standard-library-first Python design with `uv`, `ruff`, `ty`, and tests.
+- Failure handling is delegated to the agent: v1 should log failures, update project/global status, preserve the workspace for continuation, and avoid destructive rollback unless explicitly safe.
+- Runner failure definition is delegated to the agent; v1 should treat Pi CLI nonzero exit and missing required status/log handoff as runner failures, while test failures are recorded context unless the runner itself cannot continue.
+- Store machine-readable global runtime state under `~/.local/state/moon/`, with `status.json` as the initial status file.
+- Agent decision: support `moon init <project>` for projects under the configured root; if the project directory is missing, `moon init <project>` should create it. `moon claim <path>` also initializes after moving a project into the root.
+- Store global pause state in `~/.local/state/moon/state.json`; keep config for durable settings and status/log files for reporting.
+- Moonlighter should keep global logs under `~/.local/state/moon/logs/`.
+- Global logs should contain one very terse summary per tick plus warnings/errors.
+- Global tick summaries should focus on critical operational info such as time spent, token usage/spend, number of commits, and git-style line deltas like `+1234 -567`.
+- Project-specific implementation details belong in that project's `.moon/` directory, not the global log.
+- Store per-project machine-readable state in `.moon/state.json`.
+- Per-project agent-to-Moon result intent should use `.moon/agent-result.json`.
+- `.moon/state.json` should be kept minimal in v1 and should not include a schema/version field.
+- Agent decision: project initialization should create `.moon/logs/` immediately.
+- v1 `.moon/state.json` should include disposition, completion/tabled state as applicable, relevant timestamps, `.moon/brief.md` hash/change tracking, Pi session ID and session file/path, logs index, runner metadata as needed, and per-project pause state.
+- Supported project dispositions should include `active`, `needs_direction`, `complete`, and `tabled`; `needs_direction` is distinct from completion.
+- `.moon/logs/` should store summaries only, not full runner stdout/stderr.
+- Log summary format is delegated to the agent; use Markdown summaries plus JSON metadata when useful.
+- Per-project pause state should live only in that project's `.moon/state.json`.
+- `moon status <project>` may read paused projects; project pause prevents automatic work, not status inspection.
+- `moon tick` should skip paused projects silently; it should not mention paused project names in global status/log by default.
+- `moon status` should show paused project names in a paused section.
+- The v1 `.moon/brief.md` update workflow should primarily update `.moon/brief.md`; `moon status` detects the change and reports reactivation readiness rather than the workflow directly changing rotation state.
+- Treat non-interactive Pi usage output from `npm:@tian.zuo/pi-usage` as an implementation risk until verified.
+- Prefer a `codex-usage`-backed budget provider as the primary v1 path.
+- Use the copied `scripts/codex-usage` implementation as a backup/reference if the installed command changes or disappears.
+
+## Explicitly delegated
+
+- Token-budget discovery details were delegated to the agent, with the requirement that the safest available path be chosen.
+- Completed-project handling was delegated to the agent.
+- Low-level Python project structure details are delegated to the Python project skill and implementation agent.
+- Detailed automatic-work failure handling is delegated to the agent.
+- Detailed chunk-duration implementation is delegated to the agent.
+- Edge cases around per-session Pi usage checks, including projects without an existing session yet, are delegated to the agent.
+- Detailed runner-failure classification is delegated to the agent.
+- Minimal v1 work-hours configuration design is delegated to the agent, constrained to multiple daily windows, day names, optional shorthand groups, and CLI configurability.
+- Global/log status storage details are delegated to the agent.
+- Global pause-state storage is delegated to the agent; use `~/.local/state/moon/state.json`.
+- Detailed model-name validation is delegated to the agent.
+- Detailed post-MVP backlog/phasing is delegated to the agent.
+- Sample config access UX is delegated to the agent; use `moon config init`.
+- Per-project JSON state filename is delegated to the agent; use `.moon/state.json`.
+- The final method of parsing Pi/Codex usage remains delegated/investigative, subject to the hard requirement that budget status be machine-readable.
+
+## Intentionally unresolved
+
+- Exact Docker/Pi RPC invocation details, session persistence paths, credential injection, and container hardening settings.
+- Exact shape and packaging of the v1 moon-provided skill/workflow for updating `.moon/brief.md`.
+- Detailed content structure of the `.moon/brief.md` update workflow is delegated to the agent.
+- Final project selection algorithm beyond initial random choice.
+- Exact normalized JSON schema for configured budget commands.
+- Exact systemd setup UX.
+- Exact work-hours CLI UX.
+- Exact `.moon/status.md` milestone and completion format.
