@@ -165,7 +165,11 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
             agent_result = load_agent_result(result_file)
             disposition = agent_result.disposition
             summary = agent_result.summary
-            updated = replace(updated, disposition=agent_result.disposition)
+            updated = replace(
+                updated,
+                disposition=agent_result.disposition,
+                disposition_summary=agent_result.summary,
+            )
             result_file.unlink()
         save_project_state(state_path(project_dir), updated)
         load_project_state(state_path(project_dir))

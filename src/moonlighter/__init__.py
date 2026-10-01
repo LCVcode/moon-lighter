@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -122,6 +123,12 @@ def build_parser() -> argparse.ArgumentParser:
         "project", help="Project directory name under the configured root."
     )
     add_project_completer(activate_project_arg)
+
+    brief_parser = subcommands.add_parser("brief", help="Open a project's Moon brief in $EDITOR.")
+    brief_project_arg = brief_parser.add_argument(
+        "project", help="Project directory name under the configured root."
+    )
+    add_project_completer(brief_project_arg)
 
     pause_parser = subcommands.add_parser("pause", help="Pause all work or one project.")
     pause_project_arg = pause_parser.add_argument(
@@ -340,14 +347,33 @@ def handle_init(project_name: str) -> int:
     return 0
 
 
-def open_editor_for_brief(project_dir: Path) -> None:
+def open_editor_for_brief(project_dir: Path, *, required: bool = False) -> bool:
     """Open $EDITOR on the project's brief when configured."""
     editor = os.environ.get("EDITOR")
     if not editor:
-        return
-    result = subprocess.run([editor, str(brief_path(project_dir))], check=False)
+        if required:
+            raise CliError(
+                "$EDITOR is not set. Set EDITOR or open this file manually: "
+                f"{brief_path(project_dir)}"
+            )
+        return False
+    command = [*shlex.split(editor), str(brief_path(project_dir))]
+    result = subprocess.run(command, check=False)
     if result.returncode != 0:
         raise CliError(f"editor exited with status {result.returncode}: {editor}")
+    return True
+
+
+def handle_brief(project_name: str) -> int:
+    """Handle `moon brief <project>`."""
+    config = load_valid_config()
+    project_dir = resolve_project_dir(config, project_name)
+    if not project_dir.exists():
+        raise CliError(f"project does not exist: {project_dir}")
+    initialize_project(project_dir)
+    open_editor_for_brief(project_dir, required=True)
+    print(f"Brief: {brief_path(project_dir)}")
+    return 0
 
 
 def handle_claim(path_text: str) -> int:
@@ -400,6 +426,8 @@ def handle_release(project_name: str, dest_text: str | None) -> int:
         destination = Path(dest_text).expanduser()
 
     destination = destination.resolve(strict=False)
+    if destination.exists() and destination.is_dir() and dest_text is not None:
+        destination = destination / project_name
     if destination.exists():
         raise CliError(f"cannot release {project_name}: destination already exists: {destination}")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -543,6 +571,8 @@ def main(argv: list[str] | None = None) -> None:
             exit_code = handle_release(args.project, args.dest)
         elif args.command == "activate":
             exit_code = handle_activate(args.project)
+        elif args.command == "brief":
+            exit_code = handle_brief(args.project)
         elif args.command == "pause":
             exit_code = handle_pause_resume(args.project, paused=True)
         elif args.command == "resume":

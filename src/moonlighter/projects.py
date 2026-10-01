@@ -48,6 +48,7 @@ class ProjectState:
     pi_session_id: str | None
     pi_session_file: str | None
     last_claimed_from: str | None
+    disposition_summary: str | None = None
 
 
 @dataclass(frozen=True)
@@ -113,6 +114,7 @@ def initial_project_state() -> ProjectState:
         pi_session_id=None,
         pi_session_file=None,
         last_claimed_from=None,
+        disposition_summary=None,
     )
 
 
@@ -126,6 +128,7 @@ def project_state_to_json(state: ProjectState) -> dict[str, object]:
         "pi_session_id": state.pi_session_id,
         "pi_session_file": state.pi_session_file,
         "last_claimed_from": state.last_claimed_from,
+        "disposition_summary": state.disposition_summary,
     }
 
 
@@ -195,6 +198,7 @@ def parse_project_state(data: dict[str, object]) -> ProjectState:
     pi_session_id = _optional_string(data, "pi_session_id")
     pi_session_file = _optional_string(data, "pi_session_file")
     last_claimed_from = _optional_string(data, "last_claimed_from")
+    disposition_summary = _optional_string_missing_ok(data, "disposition_summary")
 
     return ProjectState(
         schema_version=schema_version,
@@ -204,6 +208,7 @@ def parse_project_state(data: dict[str, object]) -> ProjectState:
         pi_session_id=pi_session_id,
         pi_session_file=pi_session_file,
         last_claimed_from=last_claimed_from,
+        disposition_summary=disposition_summary,
     )
 
 
@@ -323,7 +328,16 @@ def _required_disposition(data: dict[str, object], key: str) -> Disposition:
 def _optional_string(data: dict[str, object], key: str) -> str | None:
     if key not in data:
         raise ProjectError(f"missing required key: {key}")
-    value = data[key]
+    return _string_or_none(data[key], key)
+
+
+def _optional_string_missing_ok(data: dict[str, object], key: str) -> str | None:
+    if key not in data:
+        return None
+    return _string_or_none(data[key], key)
+
+
+def _string_or_none(value: object, key: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):

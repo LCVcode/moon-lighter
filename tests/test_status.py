@@ -103,6 +103,37 @@ def test_project_status_shows_last_three_run_summaries(tmp_path: Path) -> None:
     assert "summary 0" not in output
 
 
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_project_status_shows_feedback_request_and_brief_command(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    project = project_root / "alpha"
+    initialize_project(project)
+    state = load_project_state(state_path(project))
+    save_project_state(
+        state_path(project),
+        type(state)(
+            schema_version=state.schema_version,
+            paused=state.paused,
+            disposition="needs_direction",
+            last_run_at=state.last_run_at,
+            pi_session_id=state.pi_session_id,
+            pi_session_file=state.pi_session_file,
+            last_claimed_from=state.last_claimed_from,
+            disposition_summary="Please clarify the target UI.",
+        ),
+    )
+    config = Config(
+        project_root=project_root,
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+
+    output = render_project_status(config, "alpha")
+
+    assert "Feedback requested:" in output
+    assert "Please clarify the target UI." in output
+    assert "Edit guidance: moon brief alpha" in output
+
+
 def test_running_moon_containers_parses_docker_ps(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("moonlighter.status.shutil.which", lambda _name: "/usr/bin/docker")
 

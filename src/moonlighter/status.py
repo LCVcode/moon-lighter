@@ -22,6 +22,7 @@ from moonlighter.projects import (
     logs_dir,
     moon_dir,
     state_path,
+    status_path,
 )
 from moonlighter.runtime_state import RuntimeStateError, load_global_state
 from moonlighter.schedule import WorkStatus, evaluate_work_windows, format_duration
@@ -147,6 +148,13 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
     lines.append(f"Pi session ID: {status.state.pi_session_id or 'none'}")
     lines.append(f"Pi session file: {status.state.pi_session_file or 'none'}")
     lines.append(f"Last claimed from: {status.state.last_claimed_from or 'none'}")
+    if status.state.disposition == "needs_direction":
+        feedback = feedback_request_text(project_dir, status.state.disposition_summary)
+        lines.append("")
+        lines.append(style("Feedback requested:", BOLD, MAGENTA, enabled=color))
+        for line in feedback.splitlines():
+            lines.append(f"  {line}")
+        lines.append(f"Edit guidance: moon brief {project_name}")
 
     summaries = recent_run_summaries(project_dir, limit=3)
     if summaries:
@@ -185,6 +193,41 @@ def classify_project(project_dir: Path) -> ProjectStatus:
         state=state,
         needs_brief=brief_needs_replacement(project_dir),
     )
+
+
+def feedback_request_text(project_dir: Path, disposition_summary: str | None) -> str:
+    """Return user-facing feedback request text for a needs-direction project."""
+    if disposition_summary:
+        return disposition_summary
+    parsed = _parse_feedback_from_status(project_dir)
+    if parsed:
+        return parsed
+    return "See .moon/status.md for requested direction."
+
+
+def _parse_feedback_from_status(project_dir: Path) -> str | None:
+    path = status_path(project_dir)
+    if not path.exists():
+        return None
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    for index, line in enumerate(lines):
+        normalized = line.strip().lower().rstrip(":")
+        if normalized.startswith(("direction needed", "feedback requested")):
+            collected: list[str] = []
+            for following in lines[index + 1 :]:
+                stripped = following.strip()
+                if not stripped:
+                    if collected:
+                        break
+                    continue
+                if stripped.startswith("#"):
+                    break
+                if stripped.endswith(":") and collected:
+                    break
+                collected.append(stripped)
+            if collected:
+                return "\n".join(collected)
+    return None
 
 
 def _render_runner_status(*, color: bool) -> list[str]:
