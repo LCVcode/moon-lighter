@@ -14,6 +14,7 @@ from moonlighter.colors import BLUE, BOLD, CYAN, DIM, GREEN, MAGENTA, RED, YELLO
 from moonlighter.config import Config, default_state_dir
 from moonlighter.projects import (
     BRIEF_PLACEHOLDER,
+    PRIORITY_TIERS,
     ProjectError,
     ProjectState,
     brief_path,
@@ -83,8 +84,12 @@ def render_global_status(
     except ProjectError as exc:
         lines.append(f"Projects: unavailable ({exc})")
     else:
+        active_statuses = [status for status in project_statuses if status.section == "active"]
+        if active_statuses:
+            lines.append(style("Active:", *_section_style("active"), enabled=color))
+            lines.extend(_render_priority_groups(active_statuses))
+
         for section in (
-            "active",
             "paused",
             "needs brief",
             "needs direction",
@@ -143,6 +148,7 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
     )
     lines.append(f"Disposition: {disposition}")
     lines.append(f"Paused: {paused}")
+    lines.append(f"Priority: {status.state.priority}")
     lines.append(f"Needs brief: {needs_brief}")
     lines.append(f"Last run: {status.state.last_run_at or 'never'}")
     lines.append(f"Pi session ID: {status.state.pi_session_id or 'none'}")
@@ -289,6 +295,18 @@ def _parse_docker_labels(text: str) -> dict[str, str]:
         if separator:
             labels[key.strip()] = value.strip()
     return labels
+
+
+def _render_priority_groups(statuses: list[ProjectStatus]) -> list[str]:
+    lines: list[str] = []
+    for priority in PRIORITY_TIERS:
+        names = sorted(
+            status.name for status in statuses if status.state and status.state.priority == priority
+        )
+        if names:
+            lines.append(f"  {priority}:")
+            lines.extend(f"    - {name}" for name in names)
+    return lines
 
 
 def _section_style(section: str) -> tuple[str, ...]:

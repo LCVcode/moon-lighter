@@ -13,6 +13,7 @@ from moonlighter.budget import BudgetGateResult, check_budget
 from moonlighter.config import Config, default_state_dir
 from moonlighter.gates import GateResult, preflight_tick_gates
 from moonlighter.projects import (
+    PRIORITY_TIERS,
     ProjectError,
     ProjectRef,
     discover_projects,
@@ -206,7 +207,7 @@ def choose_next_project(
     ]
     if not candidates:
         return None
-    return min(candidates, key=_last_run_sort_key)
+    return min(candidates, key=_priority_last_run_sort_key)
 
 
 def _is_eligible(project_dir: Path) -> bool:
@@ -217,9 +218,9 @@ def _is_eligible(project_dir: Path) -> bool:
     return not state.paused and state.disposition == "active"
 
 
-def _last_run_sort_key(project_dir: Path) -> tuple[str, str]:
+def _priority_last_run_sort_key(project_dir: Path) -> tuple[int, str, str]:
     try:
         state = load_project_state(state_path(project_dir))
     except ProjectError:
-        return ("", project_dir.name)
-    return (state.last_run_at or "", project_dir.name)
+        return (len(PRIORITY_TIERS), "", project_dir.name)
+    return (PRIORITY_TIERS.index(state.priority), state.last_run_at or "", project_dir.name)

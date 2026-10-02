@@ -110,6 +110,34 @@ def test_tick_round_robins_by_oldest_last_run(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_tick_prefers_higher_priority_before_oldest_last_run(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    low_old = project_root / "low-old"
+    high_new = project_root / "high-new"
+    initialize_project(low_old)
+    initialize_project(high_new)
+    low_state = load_project_state(state_path(low_old))
+    high_state = load_project_state(state_path(high_new))
+    save_project_state(
+        state_path(low_old),
+        replace(low_state, priority="low", last_run_at="2026-01-01T00:00:00Z"),
+    )
+    save_project_state(
+        state_path(high_new),
+        replace(high_state, priority="high", last_run_at="2026-01-02T00:00:00Z"),
+    )
+    calls: list[Path] = []
+
+    def runner(request: RunnerRequest) -> RunnerResult:
+        calls.append(request.project_dir)
+        return RunnerResult(success=True, elapsed_seconds=1)
+
+    run_tick(config_for(project_root), runner=runner, gate_checker=allow_gate)
+
+    assert calls[:2] == [high_new, low_old]
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
 def test_tick_rechecks_gate_between_chunks(tmp_path: Path) -> None:
     project_root = tmp_path / "projects"
     initialize_project(project_root / "alpha")

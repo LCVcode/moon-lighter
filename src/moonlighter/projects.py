@@ -21,7 +21,10 @@ INITIAL_STATUS_TEXT = "# Moon Status\n\nInitialized by Moonlighter.\n"
 STATE_SCHEMA_VERSION = 1
 
 Disposition = Literal["active", "needs_direction", "complete", "tabled"]
+Priority = Literal["urgent", "high", "normal", "low", "backlog"]
 VALID_DISPOSITIONS: frozenset[str] = frozenset({"active", "needs_direction", "complete", "tabled"})
+PRIORITY_TIERS: tuple[Priority, ...] = ("urgent", "high", "normal", "low", "backlog")
+DEFAULT_PRIORITY: Priority = "normal"
 
 
 class ProjectError(ValueError):
@@ -49,6 +52,7 @@ class ProjectState:
     pi_session_file: str | None
     last_claimed_from: str | None
     disposition_summary: str | None = None
+    priority: Priority = DEFAULT_PRIORITY
 
 
 @dataclass(frozen=True)
@@ -115,6 +119,7 @@ def initial_project_state() -> ProjectState:
         pi_session_file=None,
         last_claimed_from=None,
         disposition_summary=None,
+        priority=DEFAULT_PRIORITY,
     )
 
 
@@ -129,6 +134,7 @@ def project_state_to_json(state: ProjectState) -> dict[str, object]:
         "pi_session_file": state.pi_session_file,
         "last_claimed_from": state.last_claimed_from,
         "disposition_summary": state.disposition_summary,
+        "priority": state.priority,
     }
 
 
@@ -184,6 +190,13 @@ def set_project_paused(project_dir: Path, paused: bool) -> None:
     save_project_state(state_file, replace(state, paused=paused))
 
 
+def set_project_priority(project_dir: Path, priority: Priority) -> None:
+    """Set a project's priority tier."""
+    state_file = state_path(project_dir)
+    state = load_project_state(state_file)
+    save_project_state(state_file, replace(state, priority=priority))
+
+
 def parse_project_state(data: dict[str, object]) -> ProjectState:
     """Validate parsed project-state JSON."""
     schema_version = _required_int(data, "schema_version")
@@ -199,6 +212,7 @@ def parse_project_state(data: dict[str, object]) -> ProjectState:
     pi_session_file = _optional_string(data, "pi_session_file")
     last_claimed_from = _optional_string(data, "last_claimed_from")
     disposition_summary = _optional_string_missing_ok(data, "disposition_summary")
+    priority = _optional_priority_missing_ok(data, "priority")
 
     return ProjectState(
         schema_version=schema_version,
@@ -209,6 +223,7 @@ def parse_project_state(data: dict[str, object]) -> ProjectState:
         pi_session_file=pi_session_file,
         last_claimed_from=last_claimed_from,
         disposition_summary=disposition_summary,
+        priority=priority,
     )
 
 
@@ -323,6 +338,16 @@ def _required_disposition(data: dict[str, object], key: str) -> Disposition:
         valid = ", ".join(sorted(VALID_DISPOSITIONS))
         raise ProjectError(f"{key} must be one of: {valid}")
     return cast(Disposition, value)
+
+
+def _optional_priority_missing_ok(data: dict[str, object], key: str) -> Priority:
+    if key not in data:
+        return DEFAULT_PRIORITY
+    value = data[key]
+    if not isinstance(value, str) or value not in PRIORITY_TIERS:
+        valid = ", ".join(PRIORITY_TIERS)
+        raise ProjectError(f"{key} must be one of: {valid}")
+    return value
 
 
 def _optional_string(data: dict[str, object], key: str) -> str | None:

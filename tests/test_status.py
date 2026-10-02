@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -59,7 +60,7 @@ def test_global_status_classifies_projects_without_initializing(
 
     assert "Global pause: not paused" in output
     assert "Work window: active" in output
-    assert "Active:\n  - active" in output
+    assert "Active:\n  normal:\n    - active" in output
     assert "Paused:\n  - paused" in output
     assert "Uninitialized:\n  - uninitialized" in output
     assert not (uninitialized / ".moon").exists()
@@ -79,6 +80,23 @@ def test_project_status_reports_uninitialized_without_initializing(tmp_path: Pat
 
     assert "State: uninitialized" in output
     assert not (project / ".moon").exists()
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_project_status_shows_priority(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    project = project_root / "alpha"
+    initialize_project(project)
+    state = load_project_state(state_path(project))
+    save_project_state(state_path(project), replace(state, priority="high"))
+    config = Config(
+        project_root=project_root,
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+
+    output = render_project_status(config, "alpha")
+
+    assert "Priority: high" in output
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")

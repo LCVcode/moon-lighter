@@ -96,9 +96,21 @@ moon status
 moon status hydro-helper
 ```
 
-Global status shows schedule state, runner state, project categories, and last-known budget. Project status shows disposition, pause state, session metadata, requested feedback, and recent summaries.
+Global status shows schedule state, runner state, active projects grouped by priority, runner state, project categories, and last-known budget. Project status shows disposition, pause state, priority, session metadata, requested feedback, and recent summaries.
 
-### 3. Run one manual chunk
+### 3. Prioritize work
+
+Projects default to `normal` priority. Set a higher or lower tier when some projects should be completed before others:
+
+```bash
+moon priority hydro-helper urgent
+moon priority docs-refresh low
+moon priority
+```
+
+Scheduled work scans active projects from highest priority to lowest: `urgent`, `high`, `normal`, `low`, then `backlog`.
+
+### 4. Run one manual chunk
 
 ```bash
 moon run hydro-helper
@@ -113,7 +125,7 @@ moon run hydro-helper --chunk-minutes 10
 moon run hydro-helper --ignore-budget
 ```
 
-### 4. Respond to feedback
+### 5. Respond to feedback
 
 If the agent needs direction, the project moves out of Active and into Needs Direction.
 
@@ -133,7 +145,7 @@ Edit `.moon/brief.md` with your answer, then reactivate the project:
 moon activate hydro-helper
 ```
 
-### 5. Pause, resume, deactivate, reactivate
+### 6. Pause, resume, deactivate, reactivate
 
 Pause all work:
 
@@ -161,7 +173,7 @@ moon resume hydro-helper
 
 `moon activate <project>` also clears completed/tabled state and project pause state.
 
-### 6. Scheduled work entry point
+### 7. Scheduled work entry point
 
 ```bash
 moon work
@@ -237,7 +249,7 @@ Open the project brief in `$EDITOR`.
 
 ### `moon status [project]`
 
-Show global or per-project status.
+Show global or per-project status. Global status groups active projects by priority tier.
 
 Options:
 
@@ -246,6 +258,31 @@ moon status --color auto
 moon status --color always
 moon status --color never
 ```
+
+### `moon priority [project] [priority]`
+
+View or set project priority.
+
+With no arguments, list initialized projects by priority tier:
+
+```bash
+moon priority
+```
+
+With a project only, show that project's priority:
+
+```bash
+moon priority hydro-helper
+```
+
+With a project and tier, set priority:
+
+```bash
+moon priority hydro-helper urgent
+moon priority hydro-helper normal
+```
+
+Priority must be one of: `urgent`, `high`, `normal`, `low`, `backlog`.
 
 ### `moon run [project]`
 
@@ -319,6 +356,8 @@ moon setup completion --print
 ```
 
 `.moon/state.json` is Moon-owned. Agents must not edit it directly. Agents request disposition changes by writing `.moon/agent-result.json`.
+
+Project priority defaults to `normal`. Active project selection prefers higher priority tiers first, then falls back to the existing oldest-last-run rotation within the tier.
 
 Common dispositions:
 

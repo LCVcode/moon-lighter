@@ -132,6 +132,28 @@ def test_release_errors_when_destination_subdirectory_exists(
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_priority_lists_shows_and_sets_project_priority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project_root = tmp_path / "projects"
+    install_config(monkeypatch, project_root, tmp_path / "state")
+    moonlighter.main(["init", "alpha"])
+    moonlighter.main(["init", "beta"])
+
+    moonlighter.main(["priority", "alpha", "urgent"])
+    assert load_project_state(state_path(project_root / "alpha")).priority == "urgent"
+
+    moonlighter.main(["priority", "alpha"])
+    moonlighter.main(["priority"])
+
+    output = capsys.readouterr().out
+    assert "Priority set: alpha -> urgent" in output
+    assert "alpha: urgent" in output
+    assert "urgent:\n  - alpha" in output
+    assert "normal:\n  - beta" in output
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
 def test_pause_resume_project_and_activate_clear_disposition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

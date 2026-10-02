@@ -25,13 +25,17 @@ from moonlighter.config import (
     load_config as load_config_no_validation,
 )
 from moonlighter.projects import (
+    PRIORITY_TIERS,
+    Priority,
     ProjectError,
     activate_project_state,
     brief_path,
+    discover_projects,
     initialize_project,
     load_project_state,
     set_project_claim_source,
     set_project_paused,
+    set_project_priority,
     state_path,
 )
 from moonlighter.runtime_state import RuntimeStateError, set_global_paused
@@ -129,6 +133,18 @@ def build_parser() -> argparse.ArgumentParser:
         "project", help="Project directory name under the configured root."
     )
     add_project_completer(brief_project_arg)
+
+    priority_parser = subcommands.add_parser("priority", help="View or set project priority.")
+    priority_project_arg = priority_parser.add_argument(
+        "project", nargs="?", help="Optional project directory name."
+    )
+    add_project_completer(priority_project_arg)
+    priority_parser.add_argument(
+        "priority",
+        nargs="?",
+        choices=PRIORITY_TIERS,
+        help="Priority tier: urgent, high, normal, low, or backlog.",
+    )
 
     pause_parser = subcommands.add_parser("pause", help="Pause all work or one project.")
     pause_project_arg = pause_parser.add_argument(
@@ -448,6 +464,69 @@ def handle_activate(project_name: str) -> int:
     return 0
 
 
+def handle_priority(project_name: str | None, priority: str | None) -> int:
+    """Handle `moon priority [project] [priority]`."""
+    config = load_valid_config()
+    if project_name is None:
+        if priority is not None:
+            raise CliError("priority requires a project name")
+        print(render_priority_list(config))
+        return 0
+
+    project_dir = resolve_project_dir(config, project_name)
+    if not project_dir.exists():
+        raise CliError(f"project does not exist: {project_dir}")
+    if not project_dir.is_dir():
+        raise CliError(f"project path is not a directory: {project_dir}")
+    if not (project_dir / ".moon").is_dir():
+        raise CliError(f"project is not initialized: {project_dir}")
+
+    if priority is None:
+        state = load_project_state(state_path(project_dir))
+        print(f"{project_name}: {state.priority}")
+        return 0
+
+    set_project_priority(project_dir, cast(Priority, priority))
+    print(f"Priority set: {project_name} -> {priority}")
+    return 0
+
+
+def render_priority_list(config: Config) -> str:
+    """Render initialized projects grouped by priority tier."""
+    grouped: dict[str, list[str]] = {priority: [] for priority in PRIORITY_TIERS}
+    invalid: list[str] = []
+    uninitialized: list[str] = []
+    for project in discover_projects(config.project_root):
+        if not project.initialized:
+            uninitialized.append(project.name)
+            continue
+        try:
+            state = load_project_state(state_path(project.path))
+        except ProjectError:
+            invalid.append(project.name)
+            continue
+        grouped[state.priority].append(project.name)
+
+    lines = ["Priorities", ""]
+    for priority in PRIORITY_TIERS:
+        lines.append(f"{priority}:")
+        names = sorted(grouped[priority])
+        if names:
+            lines.extend(f"  - {name}" for name in names)
+        else:
+            lines.append("  none")
+        lines.append("")
+    if uninitialized:
+        lines.append("uninitialized:")
+        lines.extend(f"  - {name}" for name in sorted(uninitialized))
+        lines.append("")
+    if invalid:
+        lines.append("invalid:")
+        lines.extend(f"  - {name}" for name in sorted(invalid))
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def handle_run(project_name: str | None, chunk_minutes: int | None, ignore_budget: bool) -> int:
     """Handle `moon run`."""
     if chunk_minutes is not None and chunk_minutes <= 0:
@@ -573,6 +652,8 @@ def main(argv: list[str] | None = None) -> None:
             exit_code = handle_activate(args.project)
         elif args.command == "brief":
             exit_code = handle_brief(args.project)
+        elif args.command == "priority":
+            exit_code = handle_priority(args.project, args.priority)
         elif args.command == "pause":
             exit_code = handle_pause_resume(args.project, paused=True)
         elif args.command == "resume":
