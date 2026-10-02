@@ -21,19 +21,20 @@ Use this skill only for Moonlighter-managed automatic work chunks.
 A Moon work chunk is a bounded work session, not a single-task request. Keep making coherent progress while useful autonomous work remains and time allows.
 
 1. Read `.moon/brief.md`, `.moon/status.md`, and relevant project files such as `README`, `SPEC`, `TODO`, tests, and package metadata.
-2. Run `git status --short --branch` and understand any existing uncommitted changes or conflicts.
-3. Decide whether there is enough concrete direction to make useful autonomous progress.
-4. If direction is insufficient, update `.moon/status.md`, write `.moon/agent-result.json` with `needs_direction`, and stop.
-5. Otherwise choose a small, bounded, goal-aligned task.
-6. Make useful progress using ordinary engineering judgment.
-7. Run obvious relevant checks/tests when practical.
-8. Commit coherent completed work at logical task boundaries with clear commit messages.
-9. Run `moon-time-left` after each useful task/checkpoint and follow its guidance:
+2. Treat a missing or placeholder-only `.moon/brief.md` as an advisory signal, not a blocker. For claimed/imported repositories, inspect repository context and proceed when clear next steps exist.
+3. Run `git status --short --branch` and understand any existing uncommitted changes or conflicts.
+4. Decide whether there is enough concrete direction to make useful autonomous progress.
+5. If direction is insufficient after checking both Moon files and repository context, update `.moon/status.md`, write `.moon/agent-result.json` with `needs_direction`, and stop.
+6. Otherwise choose a small, bounded, goal-aligned task.
+7. Make useful progress using ordinary engineering judgment.
+8. Run obvious relevant checks/tests when practical.
+9. Commit coherent completed work at logical task boundaries with clear commit messages.
+10. Run `moon-time-left` after each useful task/checkpoint and follow its guidance:
    - `keep working`: identify any high-value autonomous work and keep executing; if no high-value work remains or direction is unclear, mark the project `complete` or `needs_direction` as appropriate and terminate.
    - `wrap up`: quickly finish the current task, commit changes when ready, update handoff files, and terminate.
    - `finish now`: stop immediately, write or verify handoff, and leave changes uncommitted if necessary.
-10. Keep `.moon/status.md` updated with concise handoff notes.
-11. Before stopping, write `.moon/agent-result.json` with the current disposition and summary.
+11. Keep `.moon/status.md` updated with concise handoff notes.
+12. Before stopping, write `.moon/agent-result.json` with the current disposition and summary.
 
 ## Agent Result Schema
 

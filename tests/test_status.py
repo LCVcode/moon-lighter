@@ -26,12 +26,15 @@ def test_global_status_classifies_projects_without_initializing(
     project_root = tmp_path / "projects"
     project_root.mkdir()
     active = project_root / "active"
+    repo_guided = project_root / "repo-guided"
     paused = project_root / "paused"
     uninitialized = project_root / "uninitialized"
     active.mkdir()
+    repo_guided.mkdir()
     paused.mkdir()
     uninitialized.mkdir()
     initialize_project(active)
+    initialize_project(repo_guided)
     initialize_project(paused)
     (active / ".moon" / "brief.md").write_text("Build a thing.\n", encoding="utf-8")
     (paused / ".moon" / "brief.md").write_text("Build another thing.\n", encoding="utf-8")
@@ -60,7 +63,8 @@ def test_global_status_classifies_projects_without_initializing(
 
     assert "Global pause: not paused" in output
     assert "Work window: active" in output
-    assert "Active:\n  normal:\n    - active" in output
+    assert "Active:\n  normal:\n    - active\n    - repo-guided (repo-guided)" in output
+    assert "Needs Brief:" not in output
     assert "Paused:\n  - paused" in output
     assert "Uninitialized:\n  - uninitialized" in output
     assert not (uninitialized / ".moon").exists()
@@ -97,6 +101,25 @@ def test_project_status_shows_priority(tmp_path: Path) -> None:
     output = render_project_status(config, "alpha")
 
     assert "Priority: high" in output
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_project_status_shows_repo_guided_projects_as_eligible(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    project = project_root / "alpha"
+    initialize_project(project)
+    config = Config(
+        project_root=project_root,
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+
+    output = render_project_status(config, "alpha")
+
+    assert "Disposition: active" in output
+    assert "Guidance: repo-guided" in output
+    assert "Brief: placeholder" in output
+    assert "Autonomous work: eligible; runner will inspect repository context" in output
+    assert "Needs brief:" not in output
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
