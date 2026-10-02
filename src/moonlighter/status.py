@@ -14,6 +14,7 @@ from moonlighter.colors import BLUE, BOLD, CYAN, DIM, GREEN, MAGENTA, RED, YELLO
 from moonlighter.config import Config, default_state_dir
 from moonlighter.projects import (
     BRIEF_PLACEHOLDER,
+    PRIORITY_TIERS,
     ProjectError,
     ProjectState,
     brief_path,
@@ -50,8 +51,6 @@ class ProjectStatus:
             return "invalid"
         if self.state.paused:
             return "paused"
-        if self.needs_brief:
-            return "needs brief"
         if self.state.disposition == "needs_direction":
             return "needs direction"
         if self.state.disposition in {"complete", "tabled"}:
@@ -83,10 +82,13 @@ def render_global_status(
     except ProjectError as exc:
         lines.append(f"Projects: unavailable ({exc})")
     else:
+        active_statuses = [status for status in project_statuses if status.section == "active"]
+        if active_statuses:
+            lines.append(style("Active:", *_section_style("active"), enabled=color))
+            lines.extend(_render_priority_groups(active_statuses))
+
         for section in (
-            "active",
             "paused",
-            "needs brief",
             "needs direction",
             "completed/tabled",
             "uninitialized",
@@ -136,14 +138,23 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
         YELLOW if status.state.paused else GREEN,
         enabled=color,
     )
-    needs_brief = style(
-        "yes" if status.needs_brief else "no",
+    guidance = style(
+        "repo-guided" if status.needs_brief else "brief",
+        YELLOW if status.needs_brief else GREEN,
+        enabled=color,
+    )
+    brief_status = style(
+        "placeholder" if status.needs_brief else "present",
         YELLOW if status.needs_brief else GREEN,
         enabled=color,
     )
     lines.append(f"Disposition: {disposition}")
     lines.append(f"Paused: {paused}")
-    lines.append(f"Needs brief: {needs_brief}")
+    lines.append(f"Priority: {status.state.priority}")
+    lines.append(f"Guidance: {guidance}")
+    lines.append(f"Brief: {brief_status}")
+    if status.needs_brief and status.state.disposition == "active" and not status.state.paused:
+        lines.append("Autonomous work: eligible; runner will inspect repository context")
     lines.append(f"Last run: {status.state.last_run_at or 'never'}")
     lines.append(f"Pi session ID: {status.state.pi_session_id or 'none'}")
     lines.append(f"Pi session file: {status.state.pi_session_file or 'none'}")
@@ -291,11 +302,30 @@ def _parse_docker_labels(text: str) -> dict[str, str]:
     return labels
 
 
+def _render_priority_groups(statuses: list[ProjectStatus]) -> list[str]:
+    lines: list[str] = []
+    for priority in PRIORITY_TIERS:
+        matching = sorted(
+            (status for status in statuses if status.state and status.state.priority == priority),
+            key=lambda status: status.name,
+        )
+        if matching:
+            lines.append(f"  {priority}:")
+            lines.extend(f"    - {_global_project_label(status)}" for status in matching)
+    return lines
+
+
+def _global_project_label(status: ProjectStatus) -> str:
+    """Return a project label for global status output."""
+    if status.needs_brief and status.section == "active":
+        return f"{status.name} (repo-guided)"
+    return status.name
+
+
 def _section_style(section: str) -> tuple[str, ...]:
     return {
         "active": (BOLD, GREEN),
         "paused": (BOLD, YELLOW),
-        "needs brief": (BOLD, YELLOW),
         "needs direction": (BOLD, MAGENTA),
         "completed/tabled": (BOLD, BLUE),
         "uninitialized": (BOLD, DIM),

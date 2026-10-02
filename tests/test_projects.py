@@ -59,7 +59,9 @@ def test_initialize_project_creates_standard_structure(tmp_path: Path) -> None:
     assert state_path(project_dir).name == STATE_FILE_NAME
     assert agent_result_path(project_dir).name == AGENT_RESULT_FILE_NAME
     assert not agent_result_path(project_dir).exists()
-    assert load_project_state(state_path(project_dir)).disposition == "active"
+    state = load_project_state(state_path(project_dir))
+    assert state.disposition == "active"
+    assert state.priority == "normal"
     assert (project_dir / ".git").exists()
     assert ".moon/" in (project_dir / ".gitignore").read_text(encoding="utf-8").splitlines()
 
@@ -110,6 +112,7 @@ def test_parse_project_state_accepts_valid_state() -> None:
     assert state.disposition == "needs_direction"
     assert state.last_run_at == "2026-01-01T00:00:00Z"
     assert state.last_claimed_from == "/tmp/source"
+    assert state.priority == "normal"
 
 
 @pytest.mark.parametrize(
@@ -157,6 +160,22 @@ def test_parse_project_state_accepts_valid_state() -> None:
 def test_parse_project_state_rejects_invalid_state(data: dict[str, object], message: str) -> None:
     with pytest.raises(ProjectError, match=message):
         parse_project_state(data)
+
+
+def test_parse_project_state_rejects_invalid_priority() -> None:
+    with pytest.raises(ProjectError, match="priority must be one of"):
+        parse_project_state(
+            {
+                "schema_version": 1,
+                "paused": False,
+                "disposition": "active",
+                "last_run_at": None,
+                "pi_session_id": None,
+                "pi_session_file": None,
+                "last_claimed_from": None,
+                "priority": "someday",
+            }
+        )
 
 
 @pytest.mark.parametrize("disposition", ["active", "needs_direction", "complete", "tabled"])
