@@ -50,8 +50,6 @@ class ProjectStatus:
             return "invalid"
         if self.state.paused:
             return "paused"
-        if self.needs_brief:
-            return "needs brief"
         if self.state.disposition == "needs_direction":
             return "needs direction"
         if self.state.disposition in {"complete", "tabled"}:
@@ -86,16 +84,17 @@ def render_global_status(
         for section in (
             "active",
             "paused",
-            "needs brief",
             "needs direction",
             "completed/tabled",
             "uninitialized",
             "invalid",
         ):
-            names = [status.name for status in project_statuses if status.section == section]
-            if names:
+            statuses = [status for status in project_statuses if status.section == section]
+            if statuses:
                 lines.append(style(f"{section.title()}:", *_section_style(section), enabled=color))
-                lines.extend(f"  - {name}" for name in names)
+                lines.extend(
+                    f"  - {_global_project_label(status, color=color)}" for status in statuses
+                )
         if not project_statuses:
             lines.append(f"Projects: {style('none', DIM, enabled=color)}")
 
@@ -136,14 +135,16 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
         YELLOW if status.state.paused else GREEN,
         enabled=color,
     )
-    needs_brief = style(
-        "yes" if status.needs_brief else "no",
+    brief_status = style(
+        "placeholder" if status.needs_brief else "present",
         YELLOW if status.needs_brief else GREEN,
         enabled=color,
     )
     lines.append(f"Disposition: {disposition}")
     lines.append(f"Paused: {paused}")
-    lines.append(f"Needs brief: {needs_brief}")
+    lines.append(f"Brief: {brief_status}")
+    if status.needs_brief and status.state.disposition == "active" and not status.state.paused:
+        lines.append("Autonomous work: eligible; runner will inspect repository context")
     lines.append(f"Last run: {status.state.last_run_at or 'never'}")
     lines.append(f"Pi session ID: {status.state.pi_session_id or 'none'}")
     lines.append(f"Pi session file: {status.state.pi_session_file or 'none'}")
@@ -291,11 +292,18 @@ def _parse_docker_labels(text: str) -> dict[str, str]:
     return labels
 
 
+def _global_project_label(status: ProjectStatus, *, color: bool) -> str:
+    """Return a project label for global status output."""
+    if status.needs_brief and status.section == "active":
+        annotation = style("brief placeholder; using repo context", YELLOW, enabled=color)
+        return f"{status.name} ({annotation})"
+    return status.name
+
+
 def _section_style(section: str) -> tuple[str, ...]:
     return {
         "active": (BOLD, GREEN),
         "paused": (BOLD, YELLOW),
-        "needs brief": (BOLD, YELLOW),
         "needs direction": (BOLD, MAGENTA),
         "completed/tabled": (BOLD, BLUE),
         "uninitialized": (BOLD, DIM),

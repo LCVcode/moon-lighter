@@ -115,7 +115,9 @@ moon run hydro-helper --ignore-budget
 
 ### 4. Respond to feedback
 
-If the agent needs direction, the project moves out of Active and into Needs Direction.
+A missing or placeholder brief does not by itself remove a project from Active. For claimed/imported repositories, the runner inspects repository context such as README, TODO, docs, tests, and package metadata before deciding whether it can proceed.
+
+If the agent needs direction after inspecting available context, the project moves out of Active and into Needs Direction.
 
 ```bash
 moon status hydro-helper
@@ -187,7 +189,7 @@ Creates the project directory if missing, initializes `.moon/`, initializes Git 
 moon claim ~/code/existing-project
 ```
 
-Moves the project into the configured Moon project root, initializes `.moon/` if needed, and records where it was claimed from.
+Moves the project into the configured Moon project root, initializes `.moon/` if needed, and records where it was claimed from. Claimed projects remain active even if the generated brief is still a placeholder; the runner will inspect repository context before asking for direction.
 
 ### Release a project
 
@@ -319,6 +321,8 @@ moon setup completion --print
 ```
 
 `.moon/state.json` is Moon-owned. Agents must not edit it directly. Agents request disposition changes by writing `.moon/agent-result.json`.
+
+A real brief is recommended, but not required for claimed repositories that already contain clear project context. Placeholder briefs are shown as status annotations, not as blockers.
 
 Common dispositions:
 

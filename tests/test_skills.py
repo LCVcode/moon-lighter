@@ -24,6 +24,14 @@ def test_skills_use_implemented_agent_result_schema() -> None:
     assert '"summary"' in combined
 
 
+def test_work_chunk_skill_does_not_treat_placeholder_brief_as_blocker() -> None:
+    text = SKILLS["moon-work-chunk"].read_text(encoding="utf-8")
+
+    assert "placeholder-only `.moon/brief.md`" in text
+    assert "not a blocker" in text
+    assert "repository context" in text
+
+
 def test_docs_show_explicit_skill_loading() -> None:
     text = Path("docs/skills.md").read_text(encoding="utf-8")
 
