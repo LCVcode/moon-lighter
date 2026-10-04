@@ -32,6 +32,14 @@ def test_work_chunk_skill_does_not_treat_placeholder_brief_as_blocker() -> None:
     assert "repository context" in text
 
 
+def test_work_chunk_skill_prioritizes_completion_over_scope_drift() -> None:
+    text = SKILLS["moon-work-chunk"].read_text(encoding="utf-8")
+
+    assert "Prioritize completing brief-defined goals" in text
+    assert "do not treat autonomy as permission to invent large speculative features" in text
+    assert "completes or stabilizes existing scope before adding new scope" in text
+
+
 def test_docs_show_explicit_skill_loading() -> None:
     text = Path("docs/skills.md").read_text(encoding="utf-8")
 
