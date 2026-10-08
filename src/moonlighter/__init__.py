@@ -39,6 +39,12 @@ from moonlighter.projects import (
     set_project_priority,
     state_path,
 )
+from moonlighter.run_history import (
+    RunHistoryError,
+    filter_run_records,
+    read_run_records,
+    render_run_log,
+)
 from moonlighter.runtime_state import RuntimeStateError, set_global_paused
 from moonlighter.service import (
     DEFAULT_INTERVAL,
@@ -201,6 +207,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         help="Colorize status output.",
     )
+
+    log_parser = subcommands.add_parser("log", help="Show recent Moonlighter run history.")
+    log_parser.add_argument("--limit", type=int, default=20, help="Maximum records to show.")
+    log_project_arg = log_parser.add_argument("--project", help="Only show runs for a project.")
+    add_project_completer(log_project_arg)
+    log_parser.add_argument("--status", choices=("skipped", "success", "failed"))
 
     run_parser = subcommands.add_parser("run", help="Manually run one work chunk now.")
     run_project_arg = run_parser.add_argument(
@@ -663,6 +675,16 @@ def render_priority_list(config: Config) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def handle_log(limit: int, project: str | None, status: str | None) -> int:
+    """Handle `moon log`."""
+    if limit <= 0:
+        raise CliError("--limit must be greater than zero")
+    records = read_run_records(default_state_dir())
+    filtered = filter_run_records(records, limit=limit, project=project, status=status)
+    print(render_run_log(filtered), end="")
+    return 0
+
+
 def handle_run(project_name: str | None, chunk_minutes: int | None, ignore_budget: bool) -> int:
     """Handle `moon run`."""
     if chunk_minutes is not None and chunk_minutes <= 0:
@@ -677,6 +699,7 @@ def handle_run(project_name: str | None, chunk_minutes: int | None, ignore_budge
         project_name=project_name,
         chunk_minutes=chunk_minutes,
         update_budget_after_chunk=True,
+        entrypoint="run",
     )
     if result.skipped_reason is not None:
         print(f"moon run skipped: {result.skipped_reason}")
@@ -701,6 +724,7 @@ def handle_tick(
         project_name=project_name,
         chunk_minutes=minutes,
         update_budget_after_chunk=True,
+        entrypoint="work",
     )
     if result.skipped_reason is not None:
         print(f"moon work skipped: {result.skipped_reason}")
@@ -805,13 +829,22 @@ def main(argv: list[str] | None = None) -> None:
             exit_code = handle_pause_resume(args.project, paused=False)
         elif args.command == "status":
             exit_code = handle_status(args.project, args.color)
+        elif args.command == "log":
+            exit_code = handle_log(args.limit, args.project, args.status)
         elif args.command == "run":
             exit_code = handle_run(args.project, args.chunk_minutes, args.ignore_budget)
         elif args.command == "work":
             exit_code = handle_tick(args.force, args.ignore_budget, args.project, args.minutes)
         else:
             parser.error(f"unknown command: {args.command}")
-    except (CliError, ProjectError, RuntimeStateError, ServiceError, TickError) as exc:
+    except (
+        CliError,
+        ProjectError,
+        RunHistoryError,
+        RuntimeStateError,
+        ServiceError,
+        TickError,
+    ) as exc:
         parser.exit(1, f"moon: error: {exc}\n")
 
     if exit_code:

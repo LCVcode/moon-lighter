@@ -108,6 +108,7 @@ Documentation=https://github.com/LCVcode/moon-lighter
 
 [Service]
 Type=oneshot
+Environment=MOON_TRIGGER=systemd
 ExecStart={moon_executable} work
 """
 

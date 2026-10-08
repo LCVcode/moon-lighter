@@ -29,6 +29,7 @@ def test_render_service_unit_uses_absolute_moon_path() -> None:
 
     assert MANAGED_HEADER in text
     assert "Type=oneshot" in text
+    assert "Environment=MOON_TRIGGER=systemd" in text
     assert "ExecStart=/usr/local/bin/moon work" in text
 
 

@@ -7,6 +7,7 @@ import pytest
 import moonlighter
 from moonlighter import main
 from moonlighter.config import Config, ConfigCheckResult, RunnerConfig
+from moonlighter.run_history import RunRecord, append_run_record
 from moonlighter.service import ServiceStatus
 
 
@@ -22,7 +23,7 @@ def test_main_without_command_prints_help(capsys: pytest.CaptureFixture[str]) ->
     assert "setup" in captured.out
     assert "light                " not in captured.out
     assert (
-        "{config,completion,setup,service,init,claim,release,activate,brief,priority,pause,resume,status,run,work}"
+        "{config,completion,setup,service,init,claim,release,activate,brief,priority,pause,resume,status,log,run,work}"
         in captured.out
     )
 
@@ -104,6 +105,39 @@ def test_service_status_prints_read_only_status(
     assert "enabled: yes" in output
     assert "active: no" in output
     assert "systemctl --user list-timers" in output
+
+
+def test_moon_log_renders_run_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(moonlighter, "default_state_dir", lambda: tmp_path / "state")
+    append_run_record(
+        tmp_path / "state",
+        RunRecord(
+            run_id="run-1",
+            started_at="2026-01-01T00:00:00+00:00",
+            ended_at="2026-01-01T00:01:00+00:00",
+            elapsed_seconds=60,
+            entrypoint="work",
+            trigger="systemd",
+            requested_project=None,
+            projects=("alpha",),
+            status="success",
+            skip_reason=None,
+            error=None,
+            disposition="active",
+            ran_chunks=1,
+            succeeded_chunks=1,
+            failed_chunks=0,
+        ),
+    )
+
+    main(["log", "--project", "alpha"])
+
+    output = capsys.readouterr().out
+    assert "Recent Moon runs" in output
+    assert "work/systemd" in output
+    assert "alpha" in output
 
 
 def test_status_refreshes_budget_before_rendering(

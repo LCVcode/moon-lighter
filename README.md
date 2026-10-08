@@ -205,11 +205,12 @@ Enable and start the timer:
 moon service enable
 ```
 
-Check timer status:
+Check timer status and recent run history:
 
 ```bash
 moon service status
 moon status
+moon log
 ```
 
 Disable or remove the timer:
@@ -322,6 +323,21 @@ moon priority hydro-helper normal
 
 Priority must be one of: `urgent`, `high`, `normal`, `low`, `backlog`.
 
+### `moon log`
+
+Show recent Moonlighter run history from `~/.local/state/moon/runs.jsonl`.
+
+Examples:
+
+```bash
+moon log
+moon log --limit 50
+moon log --project hydro-helper
+moon log --status skipped
+```
+
+The v1 history records when `moon run` / `moon work` started and ended, elapsed time, trigger (`manual` or `systemd`), projects run, status, skip reason, error, disposition, and chunk counts. Token and usage deltas are planned later.
+
 ### `moon run [project]`
 
 Run one immediate manual work chunk. Ignores schedule/pause gates but respects budget unless `--ignore-budget` is provided.
@@ -378,7 +394,7 @@ moon service install --interval 5m
 moon service install --moon /absolute/path/to/moon
 ```
 
-`install` writes unit files but does not enable/start the timer. `enable` runs `systemctl --user enable --now moon.timer`. Moon refuses to overwrite or remove existing unit files unless they contain Moonlighter's managed-file header.
+`install` writes unit files but does not enable/start the timer. `enable` runs `systemctl --user enable --now moon.timer`. Moon refuses to overwrite or remove existing unit files unless they contain Moonlighter's managed-file header. The generated service sets `MOON_TRIGGER=systemd` so `moon log` can distinguish timer runs from manual runs.
 
 ### `moon pause [project]`
 

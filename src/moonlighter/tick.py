@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ from moonlighter.projects import (
     load_project_state,
     state_path,
 )
+from moonlighter.run_history import RunRecord, append_run_record, new_run_id
 from moonlighter.runner import RunnerError, RunnerRequest, RunnerResult, run_project_chunk
 
 Runner = Callable[[RunnerRequest], RunnerResult]
@@ -61,8 +63,13 @@ def run_tick(
     ignore_budget: bool = False,
     budget_checker: BudgetChecker = check_budget,
     update_budget_after_chunk: bool = False,
+    entrypoint: str = "work",
 ) -> TickResult:
     """Run one manual scheduler tick."""
+    started_at = datetime.now().astimezone()
+    projects_run: list[str] = []
+    errors: list[str] = []
+    disposition: str | None = None
     if not config.project_root.exists():
         raise TickError(f"project root does not exist: {config.project_root}")
     if not config.project_root.is_dir():
@@ -78,6 +85,15 @@ def run_tick(
     if not first_gate.allowed:
         result = TickResult(0, 0, 0, skipped_reason=first_gate.reason)
         append_global_tick_log(f"skip: {first_gate.reason}")
+        append_tick_run_record(
+            started_at,
+            entrypoint=entrypoint,
+            requested_project=project_name,
+            projects=(),
+            result=result,
+            error=None,
+            disposition=None,
+        )
         return result
 
     discovered = discover_projects(config.project_root)
@@ -110,6 +126,12 @@ def run_tick(
         except (ProjectError, RunnerError, OSError) as exc:
             result = RunnerResult(success=False, elapsed_seconds=0, error=str(exc))
 
+        projects_run.append(project.name)
+        if result.error is not None:
+            errors.append(result.error)
+        if result.disposition is not None:
+            disposition = result.disposition
+
         append_chunk_log(project.name, result)
         if update_budget_after_chunk:
             budget_result = budget_checker(config)
@@ -130,7 +152,56 @@ def run_tick(
     )
     if tick_result.skipped_reason is not None:
         append_global_tick_log(f"skip: {tick_result.skipped_reason}")
+    append_tick_run_record(
+        started_at,
+        entrypoint=entrypoint,
+        requested_project=project_name,
+        projects=tuple(projects_run),
+        result=tick_result,
+        error=errors[0] if errors else None,
+        disposition=disposition,
+    )
     return tick_result
+
+
+def append_tick_run_record(
+    started_at: datetime,
+    *,
+    entrypoint: str,
+    requested_project: str | None,
+    projects: tuple[str, ...],
+    result: TickResult,
+    error: str | None,
+    disposition: str | None,
+) -> None:
+    """Append one run history record for a tick invocation."""
+    ended_at = datetime.now().astimezone()
+    if result.skipped_reason is not None:
+        status = "skipped"
+    elif result.failed_chunks:
+        status = "failed"
+    else:
+        status = "success"
+    append_run_record(
+        default_state_dir(),
+        RunRecord(
+            run_id=new_run_id(started_at),
+            started_at=started_at.isoformat(),
+            ended_at=ended_at.isoformat(),
+            elapsed_seconds=(ended_at - started_at).total_seconds(),
+            entrypoint=entrypoint,
+            trigger=os.environ.get("MOON_TRIGGER", "manual") or "manual",
+            requested_project=requested_project,
+            projects=projects,
+            status=status,
+            skip_reason=result.skipped_reason,
+            error=error,
+            disposition=disposition,
+            ran_chunks=result.ran_chunks,
+            succeeded_chunks=result.succeeded_chunks,
+            failed_chunks=result.failed_chunks,
+        ),
+    )
 
 
 def append_chunk_log(project_name: str, result: RunnerResult) -> None:

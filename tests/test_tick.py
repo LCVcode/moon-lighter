@@ -17,6 +17,7 @@ from moonlighter.projects import (
     save_project_state,
     state_path,
 )
+from moonlighter.run_history import read_run_records
 from moonlighter.runner import RunnerRequest, RunnerResult
 from moonlighter.tick import TickError, TickResult, run_tick
 
@@ -228,6 +229,45 @@ def test_tick_refreshes_budget_after_chunk_when_requested(tmp_path: Path) -> Non
     assert "budget refresh: budget refreshed" in log_text
 
 
+def test_tick_writes_run_history_for_successful_invocation(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    initialize_project(project_root / "alpha")
+
+    run_tick(
+        config_for(project_root),
+        runner=lambda _request: RunnerResult(success=True, elapsed_seconds=1, disposition="active"),
+        gate_checker=allow_gate,
+        entrypoint="work",
+    )
+
+    records = read_run_records(tmp_path / "state")
+    assert len(records) == 1
+    record = records[0]
+    assert record.entrypoint == "work"
+    assert record.trigger == "manual"
+    assert record.projects == ("alpha",)
+    assert record.status == "success"
+    assert record.disposition == "active"
+    assert record.ran_chunks == 1
+
+
+def test_tick_writes_run_history_for_skipped_invocation(tmp_path: Path) -> None:
+    project_root = tmp_path / "projects"
+    project_root.mkdir(parents=True)
+
+    run_tick(
+        config_for(project_root),
+        gate_checker=lambda _config: GateResult(False, "blocked"),
+        entrypoint="work",
+    )
+
+    record = read_run_records(tmp_path / "state")[0]
+    assert record.status == "skipped"
+    assert record.skip_reason == "blocked"
+    assert record.projects == ()
+    assert record.ran_chunks == 0
+
+
 def test_tick_logs_skip_and_chunk_summaries(tmp_path: Path) -> None:
     project_root = tmp_path / "projects"
     initialize_project(project_root / "alpha")
@@ -328,6 +368,7 @@ def test_cli_run_starts_one_forced_chunk(
             "project_name": "alpha",
             "chunk_minutes": 7,
             "update_budget_after_chunk": True,
+            "entrypoint": "run",
         }
     ]
 
