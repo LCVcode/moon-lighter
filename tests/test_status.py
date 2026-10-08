@@ -16,6 +16,7 @@ from moonlighter.projects import (
     save_project_state,
     state_path,
 )
+from moonlighter.runtime_state import set_global_paused
 from moonlighter.service import ServiceStatus
 from moonlighter.status import render_global_status, render_project_status
 
@@ -63,7 +64,7 @@ def test_global_status_classifies_projects_without_initializing(
 
     output = render_global_status(config, now=datetime(2026, 1, 1, 10, 0, tzinfo=ZoneInfo("UTC")))
 
-    assert "Global pause: not paused" in output
+    assert "Global pause:" not in output
     assert "Work window: active" in output
     assert "Service: not installed" in output
     assert "Active:\n  normal:\n    - active\n    - repo-guided (repo-guided)" in output
@@ -71,6 +72,26 @@ def test_global_status_classifies_projects_without_initializing(
     assert "Paused:\n  - paused" in output
     assert "Uninitialized:\n  - uninitialized" in output
     assert not (uninitialized / ".moon").exists()
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+def test_global_status_shows_global_pause_only_when_paused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "projects"
+    project_root.mkdir()
+    state_dir = tmp_path / "state"
+    set_global_paused(state_dir, True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setattr("moonlighter.status.default_state_dir", lambda: state_dir)
+    config = Config(
+        project_root=project_root,
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+
+    output = render_global_status(config)
+
+    assert "Global pause: paused" in output
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")

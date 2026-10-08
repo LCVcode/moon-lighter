@@ -67,9 +67,8 @@ def render_global_status(
 
     try:
         global_state = load_global_state(default_state_dir())
-        pause_text = "paused" if global_state.paused else "not paused"
-        pause_color = RED if global_state.paused else GREEN
-        lines.append(f"Global pause: {style(pause_text, pause_color, enabled=color)}")
+        if global_state.paused:
+            lines.append(f"Global pause: {style('paused', RED, enabled=color)}")
     except RuntimeStateError as exc:
         lines.append(f"Global pause: {style(f'unknown ({exc})', RED, enabled=color)}")
 
