@@ -6,7 +6,7 @@ import pytest
 
 import moonlighter
 from moonlighter import main
-from moonlighter.config import Config, RunnerConfig
+from moonlighter.config import Config, ConfigCheckResult, RunnerConfig
 from moonlighter.service import ServiceStatus
 
 
@@ -104,6 +104,32 @@ def test_service_status_prints_read_only_status(
     assert "enabled: yes" in output
     assert "active: no" in output
     assert "systemctl --user list-timers" in output
+
+
+def test_status_refreshes_budget_before_rendering(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[str] = []
+    config = Config(
+        project_root=tmp_path / "projects",
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+    monkeypatch.setattr(
+        moonlighter,
+        "check_config",
+        lambda _path=None: ConfigCheckResult(Path("config.toml"), config, ()),
+    )
+    monkeypatch.setattr(moonlighter, "check_budget", lambda _config: calls.append("budget"))
+    monkeypatch.setattr(
+        moonlighter,
+        "render_global_status",
+        lambda _config, *, color=False: calls.append("render") or "status\n",
+    )
+
+    main(["status", "--color", "never"])
+
+    assert calls == ["budget", "render"]
+    assert capsys.readouterr().out == "status\n"
 
 
 def test_setup_completion_prints_snippet(capsys: pytest.CaptureFixture[str]) -> None:

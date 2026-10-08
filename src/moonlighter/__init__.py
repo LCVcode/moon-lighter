@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import argcomplete
 
+from moonlighter.budget import check_budget
 from moonlighter.config import (
     Config,
     ConfigCheckResult,
@@ -716,8 +717,9 @@ def should_color(choice: str) -> bool:
 
 
 def handle_status(project_name: str | None, color_choice: str = "auto") -> int:
-    """Handle read-only status commands."""
+    """Handle status commands, refreshing budget before rendering."""
     config = load_valid_config()
+    check_budget(config)
     color = should_color(color_choice)
     if project_name is None:
         print(render_global_status(config, color=color), end="")
