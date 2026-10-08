@@ -12,7 +12,7 @@ Moonlighter is intentionally conservative:
 - It does not push commits.
 - It keeps human guidance in `.moon/brief.md` and machine state in `.moon/state.json`.
 
-Current status: early MVP. Manual runs and Dockerized work chunks are functional. Built-in systemd/timer setup is planned.
+Current status: early MVP. Manual runs, Dockerized work chunks, and user-level systemd timer setup are functional.
 
 ## Requirements
 
@@ -181,9 +181,44 @@ moon resume hydro-helper
 moon work
 ```
 
-`moon work` is the schedule-aware entry point intended for timers/services. It checks global pause, work windows, budget, active runner state, and project eligibility. If work is not allowed, it exits quickly. If work is allowed, it runs chunks while schedule and budget gates allow.
+`moon work` is the schedule-aware entry point intended for timers/services. It checks global pause, work windows, budget, and project eligibility. If work is not allowed, it exits quickly. If work is allowed, it runs chunks while schedule and budget gates allow.
 
-Until built-in service setup lands, you can invoke `moon work` manually or from an external timer.
+Use `moon service` to install and manage a user-level systemd timer that invokes `moon work` periodically.
+
+### 8. Optional systemd timer
+
+Preview generated user systemd units without writing files:
+
+```bash
+moon service print
+```
+
+Install Moon-managed units under `~/.config/systemd/user/`:
+
+```bash
+moon service install
+```
+
+Enable and start the timer:
+
+```bash
+moon service enable
+```
+
+Check timer status:
+
+```bash
+moon service status
+```
+
+Disable or remove the timer:
+
+```bash
+moon service disable
+moon service uninstall
+```
+
+Moon uses user-level systemd only. It does not require `sudo` and does not write to `/etc/systemd/system`.
 
 ## Project lifecycle commands
 
@@ -312,6 +347,38 @@ moon work --minutes 10
 
 `moon light` is a hidden alias for `moon work`.
 
+### `moon service <command>`
+
+Manage Moonlighter's user-level systemd service and timer. Managed files are:
+
+```text
+~/.config/systemd/user/moon.service
+~/.config/systemd/user/moon.timer
+```
+
+Commands:
+
+```bash
+moon service print
+moon service install
+moon service enable
+moon service status
+moon service disable
+moon service uninstall
+```
+
+Useful options:
+
+```bash
+moon service print --unit service
+moon service print --unit timer
+moon service install --print
+moon service install --interval 5m
+moon service install --moon /absolute/path/to/moon
+```
+
+`install` writes unit files but does not enable/start the timer. `enable` runs `systemctl --user enable --now moon.timer`. Moon refuses to overwrite or remove existing unit files unless they contain Moonlighter's managed-file header.
+
 ### `moon pause [project]`
 
 Pause all work, or pause one project.
@@ -388,6 +455,7 @@ Runner behavior:
 - User global skills are mounted read-only when present.
 - Moon workflow skills are bundled into the runner image.
 - Pi sessions are persisted outside ephemeral containers.
+- The systemd timer invokes plain `moon work`; it does not bypass schedule, pause, or budget gates.
 - The agent is instructed to commit coherent completed work and never push.
 
 ## Shell completion

@@ -39,6 +39,18 @@ from moonlighter.projects import (
     state_path,
 )
 from moonlighter.runtime_state import RuntimeStateError, set_global_paused
+from moonlighter.service import (
+    DEFAULT_INTERVAL,
+    ServiceError,
+    disable_timer,
+    enable_timer,
+    install_units,
+    read_service_status,
+    reload_systemd_user,
+    render_units,
+    resolve_moon_executable,
+    uninstall_units,
+)
 from moonlighter.status import render_global_status, render_project_status
 from moonlighter.tick import TickError, run_tick
 
@@ -100,6 +112,25 @@ def build_parser() -> argparse.ArgumentParser:
     setup_completion.add_argument(
         "--print", action="store_true", help="Print the shell startup snippet without installing."
     )
+
+    service_parser = subcommands.add_parser("service", help="Manage user systemd service/timer.")
+    service_subcommands = service_parser.add_subparsers(dest="service_command")
+    service_print = service_subcommands.add_parser("print", help="Print generated systemd units.")
+    service_print.add_argument("--unit", choices=("service", "timer", "both"), default="both")
+    service_print.add_argument("--interval", default=DEFAULT_INTERVAL)
+    service_print.add_argument("--moon", help="Absolute path to moon executable for ExecStart.")
+    service_install = service_subcommands.add_parser(
+        "install", help="Install user systemd units without enabling them."
+    )
+    service_install.add_argument("--interval", default=DEFAULT_INTERVAL)
+    service_install.add_argument("--moon", help="Absolute path to moon executable for ExecStart.")
+    service_install.add_argument(
+        "--print", action="store_true", help="Preview generated units without writing files."
+    )
+    service_subcommands.add_parser("enable", help="Enable and start the user systemd timer.")
+    service_subcommands.add_parser("disable", help="Disable and stop the user systemd timer.")
+    service_subcommands.add_parser("status", help="Show Moonlighter user systemd status.")
+    service_subcommands.add_parser("uninstall", help="Remove Moon-managed user systemd units.")
 
     init_parser = subcommands.add_parser(
         "init", help="Initialize a project under the project root."
@@ -302,6 +333,110 @@ def handle_setup(command: str | None, shell: str | None, assume_yes: bool, print
     else:
         print(f"Moon completion already installed in {path}")
     return 0
+
+
+def handle_service(
+    command: str | None,
+    *,
+    unit: str = "both",
+    interval: str = DEFAULT_INTERVAL,
+    moon_path: str | None = None,
+    print_only: bool = False,
+) -> int:
+    """Handle `moon service ...`."""
+    if command is None:
+        print("Usage: moon service {print,install,enable,disable,status,uninstall}")
+        return 2
+
+    if command == "print":
+        service_text, timer_text = render_units(resolve_moon_executable(moon_path), interval)
+        print_service_units(service_text, timer_text, unit)
+        return 0
+
+    if command == "install":
+        moon_executable = resolve_moon_executable(moon_path)
+        service_text, timer_text = render_units(moon_executable, interval)
+        if print_only:
+            print_service_units(service_text, timer_text, "both")
+            return 0
+        service_path, timer_path = install_units(moon_executable, interval)
+        reload_systemd_user()
+        print(f"Installed service: {service_path}")
+        print(f"Installed timer: {timer_path}")
+        print("Timer is not enabled. Run `moon service enable` to start scheduled work.")
+        return 0
+
+    if command == "enable":
+        enable_timer()
+        print("Enabled Moonlighter timer.")
+        return 0
+
+    if command == "disable":
+        disable_timer()
+        print("Disabled Moonlighter timer.")
+        return 0
+
+    if command == "status":
+        print(format_service_status(), end="")
+        return 0
+
+    if command == "uninstall":
+        try:
+            disable_timer()
+        except ServiceError as exc:
+            print(f"Warning: {exc}", file=sys.stderr)
+        service_removed, timer_removed = uninstall_units()
+        reload_systemd_user()
+        if service_removed:
+            print("Removed moon.service.")
+        if timer_removed:
+            print("Removed moon.timer.")
+        if not service_removed and not timer_removed:
+            print("No Moonlighter systemd units were installed.")
+        return 0
+
+    print("Usage: moon service {print,install,enable,disable,status,uninstall}")
+    return 2
+
+
+def print_service_units(service_text: str, timer_text: str, unit: str) -> None:
+    """Print selected generated systemd unit text."""
+    if unit in {"service", "both"}:
+        print("# moon.service")
+        print(service_text, end="")
+    if unit == "both":
+        print()
+    if unit in {"timer", "both"}:
+        print("# moon.timer")
+        print(timer_text, end="")
+
+
+def format_service_status() -> str:
+    """Format user systemd service status."""
+    status = read_service_status()
+    lines = ["Moonlighter service", ""]
+    lines.append(f"Service unit: {status.service_path}")
+    lines.append(f"  installed: {_yes_no(status.service_installed)}")
+    lines.append(f"  active: {_yes_no_unknown(status.service_active)}")
+    lines.append(f"Timer unit: {status.timer_path}")
+    lines.append(f"  installed: {_yes_no(status.timer_installed)}")
+    lines.append(f"  enabled: {_yes_no_unknown(status.timer_enabled)}")
+    lines.append(f"  active: {_yes_no_unknown(status.timer_active)}")
+    if status.list_timers:
+        lines.append("")
+        lines.append("systemctl --user list-timers:")
+        lines.extend(f"  {line}" for line in status.list_timers.rstrip().splitlines())
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _yes_no(value: bool) -> str:
+    return "yes" if value else "no"
+
+
+def _yes_no_unknown(value: bool | None) -> str:
+    if value is None:
+        return "unknown"
+    return _yes_no(value)
 
 
 def handle_config(command: str | None) -> int:
@@ -642,6 +777,14 @@ def main(argv: list[str] | None = None) -> None:
                 getattr(args, "yes", False),
                 getattr(args, "print", False),
             )
+        elif args.command == "service":
+            exit_code = handle_service(
+                args.service_command,
+                unit=getattr(args, "unit", "both"),
+                interval=getattr(args, "interval", DEFAULT_INTERVAL),
+                moon_path=getattr(args, "moon", None),
+                print_only=getattr(args, "print", False),
+            )
         elif args.command == "init":
             exit_code = handle_init(args.project)
         elif args.command == "claim":
@@ -666,7 +809,7 @@ def main(argv: list[str] | None = None) -> None:
             exit_code = handle_tick(args.force, args.ignore_budget, args.project, args.minutes)
         else:
             parser.error(f"unknown command: {args.command}")
-    except (CliError, ProjectError, RuntimeStateError, TickError) as exc:
+    except (CliError, ProjectError, RuntimeStateError, ServiceError, TickError) as exc:
         parser.exit(1, f"moon: error: {exc}\n")
 
     if exit_code:

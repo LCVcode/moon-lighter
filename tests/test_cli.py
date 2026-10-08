@@ -7,6 +7,7 @@ import pytest
 import moonlighter
 from moonlighter import main
 from moonlighter.config import Config, RunnerConfig
+from moonlighter.service import ServiceStatus
 
 
 def test_main_without_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
@@ -21,7 +22,7 @@ def test_main_without_command_prints_help(capsys: pytest.CaptureFixture[str]) ->
     assert "setup" in captured.out
     assert "light                " not in captured.out
     assert (
-        "{config,completion,setup,init,claim,release,activate,brief,priority,pause,resume,status,run,work}"
+        "{config,completion,setup,service,init,claim,release,activate,brief,priority,pause,resume,status,run,work}"
         in captured.out
     )
 
@@ -32,6 +33,77 @@ def test_completion_command_prints_shellcode(capsys: pytest.CaptureFixture[str])
     captured = capsys.readouterr()
     assert "moon" in captured.out
     assert "complete" in captured.out
+
+
+def test_service_print_outputs_units(capsys: pytest.CaptureFixture[str]) -> None:
+    main(["service", "print", "--moon", "/tmp/moon", "--interval", "5m"])
+
+    captured = capsys.readouterr()
+    assert "# moon.service" in captured.out
+    assert "ExecStart=/tmp/moon work" in captured.out
+    assert "# moon.timer" in captured.out
+    assert "OnUnitActiveSec=5min" in captured.out
+
+
+def test_service_install_print_does_not_write_or_reload(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    called = False
+
+    def fail_install(*_args: object, **_kwargs: object) -> tuple[Path, Path]:
+        nonlocal called
+        called = True
+        raise AssertionError("install should not be called")
+
+    monkeypatch.setattr(moonlighter, "install_units", fail_install)
+
+    main(["service", "install", "--print", "--moon", "/tmp/moon"])
+
+    assert called is False
+    assert "ExecStart=/tmp/moon work" in capsys.readouterr().out
+
+
+def test_service_enable_disable_call_wrappers(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(moonlighter, "enable_timer", lambda: calls.append("enable"))
+    monkeypatch.setattr(moonlighter, "disable_timer", lambda: calls.append("disable"))
+
+    main(["service", "enable"])
+    main(["service", "disable"])
+
+    assert calls == ["enable", "disable"]
+    output = capsys.readouterr().out
+    assert "Enabled Moonlighter timer." in output
+    assert "Disabled Moonlighter timer." in output
+
+
+def test_service_status_prints_read_only_status(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(
+        moonlighter,
+        "read_service_status",
+        lambda: ServiceStatus(
+            service_path=tmp_path / "moon.service",
+            timer_path=tmp_path / "moon.timer",
+            service_installed=True,
+            timer_installed=True,
+            timer_enabled=True,
+            timer_active=False,
+            service_active=None,
+            list_timers="NEXT LEFT LAST PASSED UNIT ACTIVATES\n",
+        ),
+    )
+
+    main(["service", "status"])
+
+    output = capsys.readouterr().out
+    assert "Moonlighter service" in output
+    assert "enabled: yes" in output
+    assert "active: no" in output
+    assert "systemctl --user list-timers" in output
 
 
 def test_setup_completion_prints_snippet(capsys: pytest.CaptureFixture[str]) -> None:
