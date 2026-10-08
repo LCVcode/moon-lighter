@@ -397,27 +397,27 @@ def recent_run_summaries(project_dir: Path, limit: int = 3) -> tuple[str, ...]:
 
 def _render_work_status(work_status: WorkStatus, now: datetime | None, *, color: bool) -> list[str]:
     current_time = now or datetime.now().astimezone()
-    lines: list[str] = []
+    lines = ["Work window:"]
     if work_status.is_work_time:
         if work_status.until is None:
-            lines.append(f"Work window: {style('active', GREEN, enabled=color)}")
+            lines.append(f"  now: {style('active', GREEN, enabled=color)}")
         else:
             duration = format_duration(work_status.until - current_time)
-            lines.append(f"Work window: {style('active', GREEN, enabled=color)} for {duration}")
+            until = work_status.until.strftime("%Y-%m-%d %H:%M")
+            lines.append(f"  now: {style('active', GREEN, enabled=color)}, {duration} left")
+            lines.append(f"  current: until {until}")
         return lines
 
     if work_status.until is None:
-        inactive = style("inactive", YELLOW, enabled=color)
-        lines.append(f"Work window: {inactive}; no upcoming window configured")
+        lines.append(f"  now: {style('inactive', YELLOW, enabled=color)}")
+        lines.append("  next: none configured")
     else:
         duration = format_duration(work_status.until - current_time)
-        lines.append(f"Work window: {style('inactive', YELLOW, enabled=color)} for {duration}")
+        lines.append(f"  now: {style('inactive', YELLOW, enabled=color)}")
         if work_status.next_window is not None:
-            lines.append(
-                "Next work window: "
-                f"{work_status.next_window.start.strftime('%Y-%m-%d %H:%M')} "
-                f"for {format_duration(work_status.next_window.duration)}"
-            )
+            start = work_status.next_window.start.strftime("%Y-%m-%d %H:%M")
+            window_duration = format_duration(work_status.next_window.duration)
+            lines.append(f"  next: {start} for {window_duration} (in {duration})")
     return lines
 
 

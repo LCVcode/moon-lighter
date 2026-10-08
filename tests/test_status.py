@@ -65,7 +65,7 @@ def test_global_status_classifies_projects_without_initializing(
     output = render_global_status(config, now=datetime(2026, 1, 1, 10, 0, tzinfo=ZoneInfo("UTC")))
 
     assert "Global pause:" not in output
-    assert "Work window: active" in output
+    assert "Work window:\n  now: active" in output
     assert "Service: not installed" in output
     assert "Active:\n  normal:\n    - active\n    - repo-guided (repo-guided)" in output
     assert "Needs Brief:" not in output
