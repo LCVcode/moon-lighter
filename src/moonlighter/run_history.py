@@ -91,10 +91,13 @@ def filter_run_records(
     limit: int,
     project: str | None = None,
     status: str | None = None,
+    include_timer_noops: bool = False,
 ) -> tuple[RunRecord, ...]:
     """Filter records for CLI display."""
     filtered: list[RunRecord] = []
     for record in records:
+        if not include_timer_noops and is_timer_noop(record):
+            continue
         if project is not None and project not in record.projects:
             continue
         if status is not None and record.status != status:
@@ -103,6 +106,20 @@ def filter_run_records(
         if len(filtered) >= limit:
             break
     return tuple(filtered)
+
+
+def is_timer_noop(record: RunRecord) -> bool:
+    """Return whether a record is a low-signal scheduler no-op.
+
+    Older service units did not set MOON_TRIGGER, so some timer no-ops were recorded as
+    manual. Treat plain `moon work` gate skips with no chunks as low-signal by default.
+    """
+    return (
+        record.entrypoint == "work"
+        and record.status == "skipped"
+        and not record.projects
+        and record.ran_chunks == 0
+    )
 
 
 def render_run_log(records: tuple[RunRecord, ...]) -> str:

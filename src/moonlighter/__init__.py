@@ -213,6 +213,11 @@ def build_parser() -> argparse.ArgumentParser:
     log_project_arg = log_parser.add_argument("--project", help="Only show runs for a project.")
     add_project_completer(log_project_arg)
     log_parser.add_argument("--status", choices=("skipped", "success", "failed"))
+    log_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Include low-signal scheduler no-ops where moon work skipped before chunks.",
+    )
 
     run_parser = subcommands.add_parser("run", help="Manually run one work chunk now.")
     run_project_arg = run_parser.add_argument(
@@ -675,12 +680,18 @@ def render_priority_list(config: Config) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def handle_log(limit: int, project: str | None, status: str | None) -> int:
+def handle_log(limit: int, project: str | None, status: str | None, include_all: bool) -> int:
     """Handle `moon log`."""
     if limit <= 0:
         raise CliError("--limit must be greater than zero")
     records = read_run_records(default_state_dir())
-    filtered = filter_run_records(records, limit=limit, project=project, status=status)
+    filtered = filter_run_records(
+        records,
+        limit=limit,
+        project=project,
+        status=status,
+        include_timer_noops=include_all,
+    )
     print(render_run_log(filtered), end="")
     return 0
 
@@ -830,7 +841,7 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "status":
             exit_code = handle_status(args.project, args.color)
         elif args.command == "log":
-            exit_code = handle_log(args.limit, args.project, args.status)
+            exit_code = handle_log(args.limit, args.project, args.status, args.all)
         elif args.command == "run":
             exit_code = handle_run(args.project, args.chunk_minutes, args.ignore_budget)
         elif args.command == "work":

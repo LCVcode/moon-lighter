@@ -229,6 +229,24 @@ def test_tick_refreshes_budget_after_chunk_when_requested(tmp_path: Path) -> Non
     assert "budget refresh: budget refreshed" in log_text
 
 
+def test_tick_detects_systemd_trigger_from_invocation_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "projects"
+    initialize_project(project_root / "alpha")
+    monkeypatch.setenv("INVOCATION_ID", "systemd-run-id")
+
+    run_tick(
+        config_for(project_root),
+        runner=lambda _request: RunnerResult(success=True, elapsed_seconds=1),
+        gate_checker=allow_gate,
+        entrypoint="work",
+    )
+
+    record = read_run_records(tmp_path / "state")[0]
+    assert record.trigger == "systemd"
+
+
 def test_tick_writes_run_history_for_successful_invocation(tmp_path: Path) -> None:
     project_root = tmp_path / "projects"
     initialize_project(project_root / "alpha")

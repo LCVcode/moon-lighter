@@ -190,7 +190,7 @@ def append_tick_run_record(
             ended_at=ended_at.isoformat(),
             elapsed_seconds=(ended_at - started_at).total_seconds(),
             entrypoint=entrypoint,
-            trigger=os.environ.get("MOON_TRIGGER", "manual") or "manual",
+            trigger=_run_trigger(),
             requested_project=requested_project,
             projects=projects,
             status=status,
@@ -202,6 +202,16 @@ def append_tick_run_record(
             failed_chunks=result.failed_chunks,
         ),
     )
+
+
+def _run_trigger() -> str:
+    """Return how this Moon invocation was triggered."""
+    configured = os.environ.get("MOON_TRIGGER")
+    if configured:
+        return configured
+    if os.environ.get("INVOCATION_ID"):
+        return "systemd"
+    return "manual"
 
 
 def append_chunk_log(project_name: str, result: RunnerResult) -> None:
