@@ -16,6 +16,7 @@ from moonlighter.projects import (
     save_project_state,
     state_path,
 )
+from moonlighter.service import ServiceStatus
 from moonlighter.status import render_global_status, render_project_status
 
 
@@ -52,6 +53,7 @@ def test_global_status_classifies_projects_without_initializing(
         ),
     )
     state_dir = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setattr("moonlighter.status.default_state_dir", lambda: state_dir)
     config = Config(
         project_root=project_root,
@@ -63,6 +65,7 @@ def test_global_status_classifies_projects_without_initializing(
 
     assert "Global pause: not paused" in output
     assert "Work window: active" in output
+    assert "Service: not installed" in output
     assert "Active:\n  normal:\n    - active\n    - repo-guided (repo-guided)" in output
     assert "Needs Brief:" not in output
     assert "Paused:\n  - paused" in output
@@ -194,6 +197,41 @@ def test_running_moon_containers_parses_docker_ps(monkeypatch: pytest.MonkeyPatc
     assert containers == ({"project": "alpha", "running_for": "3 minutes", "name": "moon-alpha"},)
 
 
+def test_global_status_shows_systemd_service_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "projects"
+    project_root.mkdir()
+    service_path = tmp_path / "moon.service"
+    timer_path = tmp_path / "moon.timer"
+    service_path.write_text("unit", encoding="utf-8")
+    timer_path.write_text("unit", encoding="utf-8")
+    monkeypatch.setattr("moonlighter.status.service_unit_path", lambda: service_path)
+    monkeypatch.setattr("moonlighter.status.timer_unit_path", lambda: timer_path)
+    monkeypatch.setattr(
+        "moonlighter.status.read_service_status",
+        lambda: ServiceStatus(
+            service_path=service_path,
+            timer_path=timer_path,
+            service_installed=True,
+            timer_installed=True,
+            timer_enabled=True,
+            timer_active=True,
+            service_active=False,
+            list_timers=None,
+        ),
+    )
+    monkeypatch.setattr("moonlighter.status.default_state_dir", lambda: tmp_path / "state")
+    config = Config(
+        project_root=project_root,
+        runner=RunnerConfig(provider="openai-codex", model="gpt-5.5", thinking="medium"),
+    )
+
+    output = render_global_status(config)
+
+    assert "Service: timer enabled, active" in output
+
+
 def test_global_status_shows_last_known_budget(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -204,6 +242,7 @@ def test_global_status_shows_last_known_budget(
     (state_dir / "status.json").write_text(
         json.dumps({"budget": "5h: 80%, weekly: 60%"}), encoding="utf-8"
     )
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setattr("moonlighter.status.default_state_dir", lambda: state_dir)
     config = Config(
         project_root=project_root,

@@ -96,7 +96,7 @@ moon status
 moon status hydro-helper
 ```
 
-Global status shows schedule state, runner state, active projects grouped by priority, runner state, project categories, and last-known budget. Project status shows disposition, pause state, priority, session metadata, requested feedback, and recent summaries.
+Global status shows schedule state, systemd service/timer state, runner state, active projects grouped by priority, project categories, and last-known budget. Project status shows disposition, pause state, priority, session metadata, requested feedback, and recent summaries.
 
 ### 3. Prioritize work
 
@@ -209,6 +209,7 @@ Check timer status:
 
 ```bash
 moon service status
+moon status
 ```
 
 Disable or remove the timer:

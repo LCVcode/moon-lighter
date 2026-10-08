@@ -27,6 +27,7 @@ from moonlighter.projects import (
 )
 from moonlighter.runtime_state import RuntimeStateError, load_global_state
 from moonlighter.schedule import WorkStatus, evaluate_work_windows, format_duration
+from moonlighter.service import read_service_status, service_unit_path, timer_unit_path
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,7 @@ def render_global_status(
 
     work_status = evaluate_work_windows(config.work_windows, now)
     lines.extend(_render_work_status(work_status, now, color=color))
+    lines.extend(_render_service_status(color=color))
     lines.extend(_render_runner_status(color=color))
     lines.append("")
 
@@ -239,6 +241,31 @@ def _parse_feedback_from_status(project_dir: Path) -> str | None:
             if collected:
                 return "\n".join(collected)
     return None
+
+
+def _render_service_status(*, color: bool) -> list[str]:
+    """Return a compact read-only user systemd status line."""
+    if not service_unit_path().exists() and not timer_unit_path().exists():
+        return [f"Service: {style('not installed', DIM, enabled=color)}"]
+
+    try:
+        status = read_service_status()
+    except OSError as exc:
+        return [f"Service: {style(f'systemctl unavailable ({exc})', YELLOW, enabled=color)}"]
+
+    if status.timer_enabled is True and status.timer_active is True:
+        text = "timer enabled, active"
+        color_name = GREEN
+    elif status.timer_enabled is True and status.timer_active is False:
+        text = "timer enabled, inactive"
+        color_name = YELLOW
+    elif status.timer_enabled is False:
+        text = "installed, disabled"
+        color_name = YELLOW
+    else:
+        text = "installed, status unknown"
+        color_name = YELLOW
+    return [f"Service: {style(text, color_name, enabled=color)}"]
 
 
 def _render_runner_status(*, color: bool) -> list[str]:
