@@ -216,7 +216,7 @@ def build_parser() -> argparse.ArgumentParser:
     log_parser.add_argument(
         "--all",
         action="store_true",
-        help="Include low-signal scheduler no-ops where moon work skipped before chunks.",
+        help="Include moon work runs that skipped before doing project work.",
     )
 
     run_parser = subcommands.add_parser("run", help="Manually run one work chunk now.")
@@ -690,7 +690,7 @@ def handle_log(limit: int, project: str | None, status: str | None, include_all:
         limit=limit,
         project=project,
         status=status,
-        include_timer_noops=include_all,
+        include_no_work_skips=include_all,
     )
     print(render_run_log(filtered), end="")
     return 0

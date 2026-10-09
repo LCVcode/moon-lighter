@@ -11,7 +11,7 @@ from moonlighter.run_history import (
     RunStatus,
     append_run_record,
     filter_run_records,
-    is_timer_noop,
+    is_no_work_skip,
     read_run_records,
     render_run_log,
     run_history_path,
@@ -52,7 +52,7 @@ def test_append_and_read_run_records_newest_first(tmp_path: Path) -> None:
     ] == ["alpha"]
 
 
-def test_filter_run_records_hides_systemd_timer_noops_by_default() -> None:
+def test_filter_run_records_hides_no_work_skips_by_default() -> None:
     timer_noop = RunRecord(
         run_id="noop",
         started_at="2026-01-01T00:00:00+00:00",
@@ -88,12 +88,34 @@ def test_filter_run_records_hides_systemd_timer_noops_by_default() -> None:
         failed_chunks=0,
     )
 
-    assert is_timer_noop(timer_noop) is True
-    assert is_timer_noop(manual_skip) is True
-    assert filter_run_records((timer_noop, manual_skip), limit=20) == ()
-    assert filter_run_records((timer_noop, manual_skip), limit=20, include_timer_noops=True) == (
+    systemd_work = RunRecord(
+        run_id="systemd-work",
+        started_at="2026-01-01T00:00:00+00:00",
+        ended_at="2026-01-01T00:01:00+00:00",
+        elapsed_seconds=60,
+        entrypoint="work",
+        trigger="systemd",
+        requested_project=None,
+        projects=("alpha",),
+        status="success",
+        skip_reason=None,
+        error=None,
+        disposition="active",
+        ran_chunks=1,
+        succeeded_chunks=1,
+        failed_chunks=0,
+    )
+
+    assert is_no_work_skip(timer_noop) is True
+    assert is_no_work_skip(manual_skip) is True
+    assert is_no_work_skip(systemd_work) is False
+    assert filter_run_records((timer_noop, manual_skip, systemd_work), limit=20) == (systemd_work,)
+    assert filter_run_records(
+        (timer_noop, manual_skip, systemd_work), limit=20, include_no_work_skips=True
+    ) == (
         timer_noop,
         manual_skip,
+        systemd_work,
     )
 
 

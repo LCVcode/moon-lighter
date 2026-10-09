@@ -336,7 +336,7 @@ moon log --project hydro-helper
 moon log --status skipped
 ```
 
-The v1 history records when `moon run` / `moon work` started and ended, elapsed time, trigger (`manual` or `systemd`), projects run, status, skip reason, error, disposition, and chunk counts. By default, `moon log` hides low-signal scheduler no-ops where `moon work` skipped before running chunks; pass `--all` to include them. Token and usage deltas are planned later.
+The v1 history records when `moon run` / `moon work` started and ended, elapsed time, trigger (`manual` or `systemd`), projects run, status, skip reason, error, disposition, and chunk counts. By default, `moon log` hides `moon work` runs that skipped before doing project work, such as timer triggers outside work windows or budget-blocked runs; pass `--all` to include them. Token and usage deltas are planned later.
 
 ### `moon run [project]`
 
