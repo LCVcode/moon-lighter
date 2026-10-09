@@ -13,6 +13,7 @@ from moonlighter.service import (
     render_service_unit,
     render_timer_unit,
     resolve_moon_executable,
+    service_path_env,
     service_unit_path,
     timer_unit_path,
     uninstall_units,
@@ -24,12 +25,50 @@ def test_resolve_moon_executable_rejects_relative_explicit_path() -> None:
         resolve_moon_executable("moon")
 
 
+def test_service_path_env_includes_pi_and_moon_parent_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PATH", "/opt/pi/bin:/usr/bin")
+    monkeypatch.setattr(
+        "moonlighter.service.shutil.which",
+        lambda name: "/opt/pi/bin/pi" if name == "pi" else None,
+    )
+
+    path = service_path_env(Path("/opt/moon/bin/moon"))
+    entries = path.split(":")
+
+    assert entries[:3] == ["/opt/pi/bin", "/opt/moon/bin", "/usr/bin"]
+    assert entries.count("/opt/pi/bin") == 1
+
+
+def test_service_path_env_uses_executable_parent_not_symlink_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bin_dir = tmp_path / "bin"
+    target_dir = tmp_path / "target"
+    bin_dir.mkdir()
+    target_dir.mkdir()
+    target = target_dir / "cli.js"
+    target.write_text("", encoding="utf-8")
+    link = bin_dir / "pi"
+    link.symlink_to(target)
+    monkeypatch.setenv("PATH", "/usr/bin")
+    monkeypatch.setattr(
+        "moonlighter.service.shutil.which",
+        lambda name: str(link) if name == "pi" else None,
+    )
+
+    entries = service_path_env(Path("/opt/moon/bin/moon")).split(":")
+
+    assert entries[0] == str(bin_dir)
+    assert str(target_dir) not in entries
+
+
 def test_render_service_unit_uses_absolute_moon_path() -> None:
     text = render_service_unit(Path("/usr/local/bin/moon"))
 
     assert MANAGED_HEADER in text
     assert "Type=oneshot" in text
     assert "Environment=MOON_TRIGGER=systemd" in text
+    assert "Environment=PATH=" in text
     assert "ExecStart=/usr/local/bin/moon work" in text
 
 

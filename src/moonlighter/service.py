@@ -97,10 +97,31 @@ def normalize_interval(value: str) -> str:
     return f"{count}h"
 
 
+def service_path_env(moon_executable: Path) -> str:
+    """Return an explicit PATH for Moonlighter's user systemd service."""
+    entries: list[str] = []
+
+    def add(path: Path | str) -> None:
+        text = str(path)
+        if text and text not in entries:
+            entries.append(text)
+
+    pi_executable = shutil.which("pi")
+    if pi_executable is not None:
+        add(Path(pi_executable).parent)
+    add(moon_executable.parent)
+    for entry in os.environ.get("PATH", os.defpath).split(os.pathsep):
+        add(entry)
+    for entry in ("/usr/local/bin", "/usr/bin", "/bin"):
+        add(entry)
+    return os.pathsep.join(entries)
+
+
 def render_service_unit(moon_executable: Path) -> str:
     """Render the Moonlighter systemd service unit."""
     if not moon_executable.is_absolute():
         raise ServiceError(f"moon executable path must be absolute: {moon_executable}")
+    path_env = service_path_env(moon_executable)
     return f"""{MANAGED_HEADER}
 [Unit]
 Description=Moonlighter scheduled work run
@@ -109,6 +130,7 @@ Documentation=https://github.com/LCVcode/moon-lighter
 [Service]
 Type=oneshot
 Environment=MOON_TRIGGER=systemd
+Environment=PATH={path_env}
 ExecStart={moon_executable} work
 """
 
