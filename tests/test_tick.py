@@ -267,7 +267,12 @@ def test_tick_does_not_treat_ci_invocation_id_as_systemd(
     assert record.trigger == "manual"
 
 
-def test_tick_writes_run_history_for_successful_invocation(tmp_path: Path) -> None:
+def test_tick_writes_run_history_for_successful_invocation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("MOON_TRIGGER", raising=False)
+    monkeypatch.delenv("INVOCATION_ID", raising=False)
+    monkeypatch.delenv("JOURNAL_STREAM", raising=False)
     project_root = tmp_path / "projects"
     initialize_project(project_root / "alpha")
 
