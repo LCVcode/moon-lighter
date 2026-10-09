@@ -209,7 +209,7 @@ def _run_trigger() -> str:
     configured = os.environ.get("MOON_TRIGGER")
     if configured:
         return configured
-    if os.environ.get("INVOCATION_ID"):
+    if os.environ.get("INVOCATION_ID") and os.environ.get("JOURNAL_STREAM"):
         return "systemd"
     return "manual"
 

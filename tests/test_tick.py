@@ -235,6 +235,7 @@ def test_tick_detects_systemd_trigger_from_invocation_id(
     project_root = tmp_path / "projects"
     initialize_project(project_root / "alpha")
     monkeypatch.setenv("INVOCATION_ID", "systemd-run-id")
+    monkeypatch.setenv("JOURNAL_STREAM", "8:12345")
 
     run_tick(
         config_for(project_root),
@@ -245,6 +246,25 @@ def test_tick_detects_systemd_trigger_from_invocation_id(
 
     record = read_run_records(tmp_path / "state")[0]
     assert record.trigger == "systemd"
+
+
+def test_tick_does_not_treat_ci_invocation_id_as_systemd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "projects"
+    initialize_project(project_root / "alpha")
+    monkeypatch.setenv("INVOCATION_ID", "github-actions-id")
+    monkeypatch.delenv("JOURNAL_STREAM", raising=False)
+
+    run_tick(
+        config_for(project_root),
+        runner=lambda _request: RunnerResult(success=True, elapsed_seconds=1),
+        gate_checker=allow_gate,
+        entrypoint="work",
+    )
+
+    record = read_run_records(tmp_path / "state")[0]
+    assert record.trigger == "manual"
 
 
 def test_tick_writes_run_history_for_successful_invocation(tmp_path: Path) -> None:
