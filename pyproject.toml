@@ -1,6 +1,6 @@
 [project]
 name = "moonlighter"
-version = "0.1.0"
+version = "1.0.0"
 description = "Use surplus Codex budget to advance side projects during configured work windows."
 readme = "README.md"
 authors = [

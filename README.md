@@ -12,7 +12,7 @@ Moonlighter is intentionally conservative:
 - It does not push commits.
 - It keeps human guidance in `.moon/brief.md` and machine state in `.moon/state.json`.
 
-Current status: early MVP. Manual runs, Dockerized work chunks, and user-level systemd timer setup are functional.
+Current status: v1 MVP. Manual runs, scheduled systemd work, project lifecycle, budget and schedule gates, run history, and the Dockerized Pi runner are functional.
 
 ## Requirements
 

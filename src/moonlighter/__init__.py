@@ -61,7 +61,7 @@ from moonlighter.service import (
 from moonlighter.status import render_global_status, render_project_status
 from moonlighter.tick import TickError, run_tick
 
-_VERSION = "0.1.0"
+_VERSION = "1.0.0"
 
 
 class CliError(ValueError):
