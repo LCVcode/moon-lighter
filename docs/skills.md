@@ -5,6 +5,7 @@ Moonlighter ships Pi skills for autonomous project work. During development they
 ## Skills
 
 - `moon-work-chunk`: bounded autonomous project work inside a Moon-owned workspace.
+- `moon-plan-roadmap`: planning mode that writes a versioned path in `.moon/roadmap.md`.
 - `moon-wrap-up`: chunk deadline wrap-up, status/log handoff, and agent-result writing.
 - `moon-update-brief`: human-guided updates to `.moon/brief.md`, especially after clarification sessions.
 
@@ -19,7 +20,7 @@ pi --skill ./skills/moon-update-brief
 For explicit automatic-work protocol testing:
 
 ```bash
-pi --skill ./skills/moon-work-chunk --skill ./skills/moon-wrap-up
+pi --skill ./skills/moon-work-chunk --skill ./skills/moon-plan-roadmap --skill ./skills/moon-wrap-up
 ```
 
 Inside the Docker runner image, Moon loads workflow skills from bundled paths:
@@ -28,10 +29,11 @@ Inside the Docker runner image, Moon loads workflow skills from bundled paths:
 pi --mode rpc \
   --approve \
   --skill /opt/moon/skills/moon-work-chunk \
+  --skill /opt/moon/skills/moon-plan-roadmap \
   --skill /opt/moon/skills/moon-wrap-up
 ```
 
-Moon also prompts the RPC session with `/skill:moon-work-chunk` at chunk start and `/skill:moon-wrap-up` near the deadline so skill use is explicit rather than relying only on automatic selection.
+Moon also prompts the RPC session with `/skill:moon-work-chunk` at chunk start and `/skill:moon-wrap-up` near the deadline so skill use is explicit rather than relying only on automatic selection. The work-chunk skill can switch to `/skill:moon-plan-roadmap` when concrete next steps are not yet defined.
 
 ## Handoff contract
 

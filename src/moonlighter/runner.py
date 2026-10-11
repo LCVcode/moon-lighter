@@ -29,6 +29,7 @@ CONTAINER_SESSION_DIR = CONTAINER_HOME / ".pi" / "agent" / "sessions"
 CONTAINER_AGENTS_SKILLS = CONTAINER_HOME / ".agents" / "skills"
 CONTAINER_PI_SKILLS = CONTAINER_HOME / ".pi" / "agent" / "skills"
 MOON_WORK_CHUNK_SKILL = Path("/opt/moon/skills/moon-work-chunk")
+MOON_PLAN_ROADMAP_SKILL = Path("/opt/moon/skills/moon-plan-roadmap")
 MOON_WRAP_UP_SKILL = Path("/opt/moon/skills/moon-wrap-up")
 RUNNER_IMAGE_VERSION = "0.1.0-dev"
 
@@ -257,6 +258,8 @@ def build_docker_command(
         "--skill",
         str(MOON_WORK_CHUNK_SKILL),
         "--skill",
+        str(MOON_PLAN_ROADMAP_SKILL),
+        "--skill",
         str(MOON_WRAP_UP_SKILL),
     ]
     session_file = _saved_container_session_file(project_dir)
@@ -280,11 +283,14 @@ def work_chunk_prompt() -> str:
 
 Moonlighter is running one bounded autonomous work chunk in this Moon-owned workspace.
 Use the moon-work-chunk protocol. This is a bounded work session, not a one-task request.
-Run `moon-time-left` after each useful task/checkpoint. If it says `keep working`, identify
-and execute another high-value autonomous task when one exists. Make coherent commits at
-logical task boundaries with high-quality messages, run obvious relevant checks before commits
-when practical, and never push. Do not edit .moon/state.json. Before stopping, update
-.moon/status.md and write .moon/agent-result.json with a valid disposition and summary.
+If .moon/roadmap.md exists, implement its next planned update. If no roadmap exists and next
+steps are not concrete, use /skill:moon-plan-roadmap to create a versioned development path
+before ad hoc task selection. Run `moon-time-left` after each useful task/checkpoint. If it says
+`keep working`, identify and execute another high-value autonomous task when one exists. Make
+coherent commits at logical task boundaries with high-quality messages, run obvious relevant
+checks before commits when practical, and never push. Do not edit .moon/state.json. Before
+stopping, update .moon/status.md and write .moon/agent-result.json with a valid disposition and
+summary.
 """
 
 

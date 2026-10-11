@@ -18,6 +18,7 @@ from moonlighter.projects import (
 from moonlighter.runner import (
     CONTAINER_HOME,
     CONTAINER_SESSION_DIR,
+    MOON_PLAN_ROADMAP_SKILL,
     MOON_WORK_CHUNK_SKILL,
     RunnerRequest,
     build_docker_command,
@@ -60,6 +61,7 @@ def test_build_docker_command_uses_ephemeral_container_and_explicit_skills(tmp_p
     assert "rpc" in command
     assert "--skill" in command
     assert str(MOON_WORK_CHUNK_SKILL) in command
+    assert str(MOON_PLAN_ROADMAP_SKILL) in command
     assert not any(str(Path.home()) == part for part in command)
     assert any(
         f"source={project_dir.resolve(strict=False)},target=/workspace" in part for part in command
@@ -164,6 +166,8 @@ def test_work_chunk_prompt_mentions_agent_result_contract() -> None:
     assert ".moon/state.json" in prompt
     assert "disposition" in prompt
     assert "moon-time-left" in prompt
+    assert "/skill:moon-plan-roadmap" in prompt
+    assert ".moon/roadmap.md" in prompt
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
