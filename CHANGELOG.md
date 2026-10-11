@@ -4,6 +4,17 @@ All notable changes to Moonlighter will be documented in this file.
 
 This project follows Semantic Versioning.
 
+## 1.1.0 - Unreleased
+
+### Changed
+
+- Roadmap planning now maps capability cycles first, then expands the next cycle
+  into foundation, integration, and stabilization increments.
+- Planning identifiers are independent of release numbers; workers resolve SemVer
+  from delivered scope before release and record versions back into the roadmap.
+- Autonomous work follows the next planned increment and expands the next cycle
+  when needed, without treating unresolved release versions as blockers.
+
 ## 1.0.0 - Unreleased
 
 Initial v1 MVP release.

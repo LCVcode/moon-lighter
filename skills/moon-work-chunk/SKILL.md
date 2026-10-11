@@ -12,7 +12,7 @@ Use this skill only for Moonlighter-managed automatic work chunks.
 - Treat the current working directory as a Moon-owned project workspace.
 - Do not edit `.moon/state.json`; it is Moon-owned machine state.
 - Do not push commits or contact remotes unless explicitly instructed by project files.
-- Prioritize the next planned roadmap version when `.moon/roadmap.md` exists.
+- Prioritize the next planned roadmap increment when `.moon/roadmap.md` exists.
 - Prioritize completing brief-defined goals, MVP scope, and already-started features over expanding scope.
 - Make decisions in pursuit of the brief and roadmap; do not treat autonomy as permission to invent large speculative features.
 - Do not start broad rewrites or speculative work that cannot be handed off cleanly.
@@ -27,9 +27,9 @@ A Moon work chunk is a bounded work session, not a single-task request. Keep mak
 2. Treat a missing or placeholder-only `.moon/brief.md` as an advisory signal, not a blocker. For claimed/imported repositories, inspect repository context and proceed when clear next steps exist.
 3. Run `git status --short --branch` and understand any existing uncommitted changes or conflicts.
 4. Read `.moon/roadmap.md` if present.
-5. If a roadmap exists, identify the next planned version/update and implement that before locally inventing a task.
+5. If a roadmap exists, identify the next planned increment and implement that before locally inventing a task. If the next cycle lacks concrete increments, use `moon-plan-roadmap` to expand it first. Unresolved release numbers are not blockers: use the local `semantic-versioning` skill when resolving versions from delivered scope, before release, and record them back into the roadmap.
 6. If no roadmap exists and the brief/status/repository define concrete next steps, identify the smallest task that moves the project toward those goals.
-7. If no roadmap exists and next steps are not concrete, switch to project-planning mode using `moon-plan-roadmap`: identify the delta between current and desired state, write a versioned roadmap, update handoff files, commit the roadmap when appropriate, and stop or continue based on `moon-time-left`.
+7. If no roadmap exists and next steps are not concrete, switch to project-planning mode using `moon-plan-roadmap`: identify the delta between current and desired state, write a capability roadmap and next-cycle integration plan, update handoff files, commit the roadmap when appropriate, and stop or continue based on `moon-time-left`.
 8. Decide whether there is enough concrete direction to make useful autonomous progress.
 9. If direction is insufficient after checking Moon files, repository context, and planning options, update `.moon/status.md`, write `.moon/agent-result.json` with `needs_direction`, and stop.
 10. Otherwise choose a small, bounded, goal-aligned task that completes or stabilizes existing roadmap/brief scope before adding new scope.

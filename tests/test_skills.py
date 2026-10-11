@@ -45,7 +45,8 @@ def test_work_chunk_skill_uses_versioned_roadmap_planning() -> None:
     text = SKILLS["moon-work-chunk"].read_text(encoding="utf-8")
 
     assert "Read `.moon/roadmap.md` if present" in text
-    assert "identify the next planned version/update" in text
+    assert "identify the next planned increment" in text
+    assert "Unresolved release numbers are not blockers" in text
     assert "switch to project-planning mode using `moon-plan-roadmap`" in text
 
 
@@ -55,7 +56,21 @@ def test_roadmap_skill_writes_versioned_path() -> None:
     assert "`.moon/roadmap.md`" in text
     assert "current project state, the desired state, and the delta" in text
     assert "Use the `semantic-versioning` skill" in text
-    assert "### Next: <version> - <name>" in text
+    assert "### Next: <increment ID> - <name>" in text
+
+
+def test_roadmap_skill_uses_two_level_rolling_wave_planning() -> None:
+    text = SKILLS["moon-plan-roadmap"].read_text(encoding="utf-8")
+
+    assert "capability roadmap → development cycle → implementation increment" in text
+    assert "Expand only the next incomplete cycle" in text
+    assert "independently deliverable integrations immediately after the foundation" in text
+    assert "expand the following cycle before starting its implementation" in text
+    assert "new commands or functionality require minor releases" in text
+    assert "Separate capability/dependency planning from release numbering" in text
+    assert "before release, not necessarily before implementation" in text
+    assert "Record resolved release versions" in text
+    assert "Do not automatically assign a minor version to a cycle" in text
 
 
 def test_docs_show_explicit_skill_loading() -> None:

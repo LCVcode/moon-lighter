@@ -1,38 +1,74 @@
 ---
 name: moon-plan-roadmap
-description: Moonlighter planning protocol. Use when a Moon-owned project has a desired direction but lacks a concrete versioned roadmap, or when a user asks Moon to plan the development path. Do not use for ordinary implementation when a clear next roadmap item already exists.
+description: Moonlighter rolling-wave planning protocol. Use when a Moon-owned project lacks a concrete capability roadmap, its next development cycle needs expansion, or a user asks Moon to plan the development path. Do not use for ordinary implementation when a clear next roadmap increment already exists.
 ---
 
 # Moon Plan Roadmap
 
-Use this skill to turn project direction into a concrete versioned development path.
+Turn project direction into a capability roadmap and a detailed next-cycle integration plan.
 
 ## Rules
 
 - Treat `.moon/brief.md` as the desired-state source unless newer user guidance or project files clearly supersede it.
 - Inspect the current repository state before planning; do not plan from the brief alone.
-- Prefer a durable roadmap in `.moon/roadmap.md` over burying execution plans in `.moon/status.md`.
+- Prefer a durable roadmap in `.moon/roadmap.md` over burying execution plans in `.moon/status.md`. Respect an explicitly requested alternative such as root `ROADMAP.md`.
 - Use the `semantic-versioning` skill when choosing version numbers if it is available.
-- Plan enough detail for future autonomous workers to identify and implement the next update without re-planning.
 - Keep the roadmap realistic and bounded. Do not invent large speculative features beyond the brief's goal and constraints.
-- Do not edit `.moon/state.json`.
+- Do not edit `.moon/state.json` or change package versions merely to record a plan.
+
+## Planning Scopes
+
+Use the hierarchy **capability roadmap → development cycle → implementation increment**.
+
+### Capability roadmap
+
+Map all foreseeable capability cycles from current state to desired state in one pass. Identify cycles by stable names or planning IDs, not reserved release numbers. Record outcomes and dependencies; keep later cycles coarse rather than detailing every task in advance. A cycle is an organizational scope and may span multiple minor and patch releases.
+
+### Next-cycle integration plan
+
+Expand only the next incomplete cycle into an ordered delivery chain:
+
+1. **Foundation:** implement and validate the new capability.
+2. **Integration:** identify existing commands, features, workflows, and outputs that should consume it. Plan independently deliverable integrations immediately after the foundation, before unrelated capabilities.
+3. **Stabilization:** account for compatibility, missing/error states, documentation, and regression coverage where applicable.
+
+A capability is not fully delivered merely because its data or internal API exists. Account for appropriate consumers and user visibility. Omit inapplicable stages rather than inventing work. Do not defer relevant integrations to a distant generic polish milestone.
+
+Give each increment a concrete scope, dependencies, observable acceptance checks, and completion state. Workers should be able to identify and implement the next increment without re-planning the whole project. A work chunk may complete only part of an increment.
+
+Example delivery chain:
+
+```text
+Capability cycle: durable work history
+  Foundation: capture summaries, metrics, and usage snapshots
+  Integration: existing log output consumes recorded summaries
+  Integration: project status consumes recorded outcomes
+  Integration: global status consumes recent run history
+  Integration: activity reports summarize captured data
+  Stabilization: legacy records, interrupted runs, and reset boundaries
+Next capability cycle: budget-aware execution control
+```
+
+### Version labels
+
+Separate capability/dependency planning from release numbering. Use stable planning IDs for increments; an unresolved release version must not block otherwise concrete implementation.
+
+As an increment's delivered scope becomes concrete, use local versioning policy to classify its public changes and resolve its release version before release, not necessarily before implementation. Under strict SemVer, compatible bug fixes may be patches; new commands or functionality require minor releases even when they integrate an existing capability. Breaking changes require major releases. Do not automatically assign a minor version to a cycle or patch versions to its integrations.
+
+Record resolved release versions and the compatibility rationale back into the roadmap, preserving planning IDs and execution order. Respect existing released versions and explicit version commitments; flag conflicts rather than silently renumbering or changing the project's versioning scheme.
 
 ## Protocol
 
-1. Read `.moon/brief.md`, `.moon/status.md`, existing `.moon/roadmap.md` if present, README/SPEC/TODO files, tests, and package metadata.
+1. Read the brief, status, existing roadmap, README/SPEC/TODO files, tests, and package metadata when present.
 2. Identify the current project state, the desired state, and the delta between them.
-3. If an existing roadmap is present, preserve completed or still-valid planned versions and revise only the parts made stale by project reality or new guidance.
-4. Define a versioned path from current state to desired state:
-   - each planned version has a concrete outcome
-   - each version lists the feature set or stabilization work to implement
-   - early versions should produce usable, testable increments
-   - later versions may be coarser when uncertainty is unavoidable
-5. Mark the next planned version clearly enough that `moon-work-chunk` can implement it directly.
-6. Update `.moon/roadmap.md`.
-7. Update `.moon/status.md` with a short planning summary and the next implementation target.
-8. If this was run inside a Moon work chunk, write `.moon/agent-result.json` with disposition `active` unless planning revealed that user direction is required.
+3. Preserve completed or still-valid plans; revise only entries made stale by project reality or new guidance.
+4. Map the capability roadmap and dependencies, then expand the next cycle's foundation, integrations, and stabilization work.
+5. Mark the next planned increment clearly enough that `moon-work-chunk` can implement it directly. Flag material decisions requiring user direction rather than guess.
+6. Write the roadmap to the agreed path. When the current cycle finishes, reassess project reality and expand the following cycle before starting its implementation.
+7. In a Moon-owned workspace, update `.moon/status.md` with a short planning summary and next implementation target. Do not create `.moon/` metadata for a standalone planning request unless requested.
+8. If run inside a Moon work chunk, write `.moon/agent-result.json` with disposition `active` unless planning revealed that user direction is required.
 
-## `.moon/roadmap.md` Shape
+## Roadmap Shape
 
 Prefer this structure:
 
@@ -40,31 +76,36 @@ Prefer this structure:
 # Roadmap
 
 ## Current State
-
-<Concise summary of what exists now.>
+<What exists now, including the current version.>
 
 ## Desired State
+<Target from the brief/user guidance.>
 
-<Concise summary of the target from the brief/user guidance.>
+## Capability Roadmap
+- <cycle ID> — <capability, outcome, dependencies, status>
+- <cycle ID> — <next capability; coarse scope>
 
-## Version Plan
+## Next Cycle: <capability>
 
-### Next: <version> - <name>
-
+### Next: <increment ID> - <name>
+- Release version: unresolved | <resolved SemVer and rationale>
+- Stage: foundation | integration | stabilization
+- Status: planned | in progress | complete
+- Depends on: <increment or prerequisite>
 - Goal: <concrete outcome>
-- Scope:
-  - <feature/stabilization item>
-  - <feature/stabilization item>
-- Acceptance:
-  - <observable check or behavior>
+- Scope: <specific changes and consumers>
+- Acceptance: <observable checks or behavior>
 
-### <version> - <name>
+### <increment ID> - <integration name>
+- Release version: unresolved | <resolved SemVer and rationale>
+- Stage: integration
+- Status: planned
+- Depends on: <foundation>
+- Scope: <existing feature adopting the capability>
+- Acceptance: <visible evidence of adoption>
 
-- Goal: <concrete outcome>
-- Scope:
-  - <item>
-- Acceptance:
-  - <check>
+## Decisions and Versioning Notes
+<Unresolved material choices or numbering conflicts.>
 ```
 
 Keep roadmap entries implementation-oriented, not aspirational.
