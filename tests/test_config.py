@@ -19,7 +19,7 @@ def test_parse_sample_config() -> None:
     config = parse_config_text(SAMPLE_CONFIG)
 
     assert config.runner.provider == "openai-codex"
-    assert config.runner.model == "gpt-5.5"
+    assert config.runner.model == "gpt-6.1-sol"
     assert config.runner.thinking == "medium"
     assert config.runner.image == "moonlighter-runner:0.1.0-dev"
     assert config.runner.chunk_minutes == 20

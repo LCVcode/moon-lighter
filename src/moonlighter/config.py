@@ -22,7 +22,7 @@ project_root = "~/moon-projects"
 
 [runner]
 provider = "openai-codex"
-model = "gpt-5.5"
+model = "gpt-6.1-sol"
 thinking = "medium"
 image = "moonlighter-runner:0.1.0-dev"
 chunk_minutes = 20
