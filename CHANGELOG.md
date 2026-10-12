@@ -4,6 +4,32 @@ All notable changes to Moonlighter will be documented in this file.
 
 This project follows Semantic Versioning.
 
+## 1.2.0 - Unreleased
+
+### Added
+
+- Durable per-invocation work reports with parent sessions, child chunks, start and
+  outcome records, monotonic duration, summaries, optional handoff context, coding
+  metrics, and runner/provider/model metadata.
+- Session/chunk quota observations and chunk-local Pi token usage, excluding prior
+  resumed-session messages. Unknown and partial token totals remain explicit.
+- Safe interrupted-session reconciliation using owner leases and Docker liveness.
+- A compact hierarchical `moon log` view with usage data, colored missing-data
+  warnings, and `running`/`interrupted` filters. Manual runs display as one item.
+
+### Changed
+
+- History start persistence is mandatory before launching work. There is no bypass
+  flag yet. Post-run usage failures do not invalidate successful project work.
+- New history retains budget blocks and operational failures but omits routine
+  outside-window, paused, and no-eligible-project skips. Old records remain readable.
+- Reports retain metrics when referenced detailed logs disappear; no automatic
+  pruning or independent report retention policy is introduced.
+
+### Fixed
+
+- `moon --version` reads installed package metadata instead of always showing 1.0.0.
+
 ## 1.1.0 - Unreleased
 
 ### Changed

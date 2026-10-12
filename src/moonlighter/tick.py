@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,8 +23,22 @@ from moonlighter.projects import (
     load_project_state,
     state_path,
 )
+from moonlighter.report_usage import observe_budget
 from moonlighter.run_history import RunRecord, append_run_record, new_run_id
-from moonlighter.runner import RunnerError, RunnerRequest, RunnerResult, run_project_chunk
+from moonlighter.runner import (
+    RunnerError,
+    RunnerRequest,
+    RunnerResult,
+    container_name,
+    run_project_chunk,
+)
+from moonlighter.work_reports import (
+    ChunkReport,
+    ReportLease,
+    SessionReport,
+    report_path,
+    save_report,
+)
 
 Runner = Callable[[RunnerRequest], RunnerResult]
 GateChecker = Callable[[Config], GateResult]
@@ -51,6 +66,14 @@ class TickResult:
         return 0
 
 
+def _routine_skip(reason: str | None) -> bool:
+    return reason in {
+        "outside configured work windows",
+        "Moonlighter is globally paused",
+        "no eligible projects",
+    }
+
+
 def run_tick(
     config: Config,
     *,
@@ -65,8 +88,75 @@ def run_tick(
     update_budget_after_chunk: bool = False,
     entrypoint: str = "work",
 ) -> TickResult:
-    """Run one manual scheduler tick."""
-    started_at = datetime.now().astimezone()
+    """Fail closed on history start writes; retain unfinished reports after crashes."""
+    started = datetime.now().astimezone()
+    clock = time.monotonic()
+    report = SessionReport(
+        run_id=new_run_id(started),
+        started_at=started.isoformat(),
+        entrypoint=entrypoint,
+        trigger=_run_trigger(),
+        requested_project=project_name,
+    )
+    state_dir = default_state_dir()
+    try:
+        with ReportLease(state_dir, report):
+            try:
+                result = _run_tick(
+                    config,
+                    runner=runner,
+                    gate_checker=gate_checker,
+                    rng=rng,
+                    force=force,
+                    project_name=project_name,
+                    chunk_minutes=chunk_minutes,
+                    ignore_budget=ignore_budget,
+                    budget_checker=budget_checker,
+                    update_budget_after_chunk=update_budget_after_chunk,
+                    entrypoint=entrypoint,
+                    report=report,
+                )
+            except (TickError, OSError, ValueError) as exc:
+                report.status, report.error = "failed", str(exc)
+                report.ended_at = datetime.now().astimezone().isoformat()
+                report.elapsed_seconds = time.monotonic() - clock
+                # A failed persistence operation leaves the last durable start intact.
+                save_report(state_dir, report)
+                raise
+            report.status = (
+                "skipped"
+                if result.skipped_reason
+                else ("failed" if result.failed_chunks else "success")
+            )
+            report.stop_reason = result.skipped_reason or report.stop_reason
+            report.ended_at = datetime.now().astimezone().isoformat()
+            report.elapsed_seconds = time.monotonic() - clock
+            if _routine_skip(result.skipped_reason):
+                report_path(state_dir, report.run_id).unlink(missing_ok=True)
+            else:
+                save_report(state_dir, report)
+            return result
+    except OSError as exc:
+        raise TickError(f"History persistence failed; work cannot continue: {exc}") from exc
+
+
+def _run_tick(
+    config: Config,
+    *,
+    runner: Runner = run_project_chunk,
+    gate_checker: GateChecker = preflight_tick_gates,
+    rng: Random | None = None,
+    force: bool = False,
+    project_name: str | None = None,
+    chunk_minutes: int | None = None,
+    ignore_budget: bool = False,
+    budget_checker: BudgetChecker = check_budget,
+    update_budget_after_chunk: bool = False,
+    entrypoint: str = "work",
+    report: SessionReport,
+) -> TickResult:
+    """Execute with a durable session already started."""
+    started_at = datetime.fromisoformat(report.started_at)
     projects_run: list[str] = []
     errors: list[str] = []
     disposition: str | None = None
@@ -82,18 +172,28 @@ def run_tick(
         gate_checker=gate_checker,
         budget_checker=budget_checker,
     )
+    initial_budget = first_gate.budget_result
+    if force and ignore_budget and update_budget_after_chunk:
+        # Bypass enforcement, not observation. An observation failure cannot re-gate work.
+        try:
+            initial_budget = budget_checker(config)
+        except (OSError, ValueError) as exc:
+            initial_budget = BudgetGateResult(False, str(exc))
+    report.budget_before = observe_budget(initial_budget)
+    save_report(default_state_dir(), report)
     if not first_gate.allowed:
         result = TickResult(0, 0, 0, skipped_reason=first_gate.reason)
         append_global_tick_log(f"skip: {first_gate.reason}")
-        append_tick_run_record(
-            started_at,
-            entrypoint=entrypoint,
-            requested_project=project_name,
-            projects=(),
-            result=result,
-            error=None,
-            disposition=None,
-        )
+        if not _routine_skip(first_gate.reason):
+            append_tick_run_record(
+                started_at,
+                entrypoint=entrypoint,
+                requested_project=project_name,
+                projects=(),
+                result=result,
+                error=None,
+                disposition=None,
+            )
         return result
 
     discovered = discover_projects(config.project_root)
@@ -113,12 +213,27 @@ def run_tick(
         if project is None:
             break
 
+        before = initial_budget
         if not force:
             gate = gate_checker(config)
             if not gate.allowed:
+                report.stop_reason = gate.reason
                 break
+            before = gate.budget_result
 
         attempted.add(project)
+        chunk = ChunkReport(
+            chunk_id=f"{report.run_id}/{len(report.chunks) + 1}",
+            project=project.name,
+            started_at=datetime.now().astimezone().isoformat(),
+            budget_before=observe_budget(before),
+            provider=config.runner.provider,
+            model=config.runner.model,
+            container=container_name(project.name) if runner is run_project_chunk else None,
+        )
+        report.chunks.append(chunk)
+        save_report(default_state_dir(), report)
+        chunk_start = time.monotonic()
         try:
             result = runner(
                 RunnerRequest(project_dir=project, config=config, chunk_minutes=chunk_minutes)
@@ -132,10 +247,27 @@ def run_tick(
         if result.disposition is not None:
             disposition = result.disposition
 
+        chunk.ended_at = datetime.now().astimezone().isoformat()
+        chunk.elapsed_seconds = time.monotonic() - chunk_start
+        chunk.status = "success" if result.success else "failed"
+        chunk.error, chunk.summary = result.error, result.summary
+        chunk.disposition, chunk.stop_reason = result.disposition, result.stop_reason
+        chunk.current_state, chunk.next_step = result.current_state, result.next_step
+        chunk.tokens = result.tokens
+        chunk.commits = result.commit_count
+        chunk.inserted_lines, chunk.deleted_lines = result.inserted_lines, result.deleted_lines
+        chunk.log_paths = _recent_log_paths(project, chunk.started_at)
+        save_report(default_state_dir(), report)
         append_chunk_log(project.name, result)
         if update_budget_after_chunk:
-            budget_result = budget_checker(config)
-            append_global_tick_log(f"budget refresh: {budget_result.reason}")
+            try:
+                budget_result = budget_checker(config)
+                chunk.budget_after = observe_budget(budget_result)
+                append_global_tick_log(f"budget refresh: {budget_result.reason}")
+            except (OSError, ValueError) as exc:
+                chunk.budget_after = observe_budget(BudgetGateResult(False, str(exc)))
+            report.budget_after = chunk.budget_after
+            save_report(default_state_dir(), report)
         if result.success:
             succeeded += 1
         else:
@@ -152,16 +284,29 @@ def run_tick(
     )
     if tick_result.skipped_reason is not None:
         append_global_tick_log(f"skip: {tick_result.skipped_reason}")
-    append_tick_run_record(
-        started_at,
-        entrypoint=entrypoint,
-        requested_project=project_name,
-        projects=tuple(projects_run),
-        result=tick_result,
-        error=errors[0] if errors else None,
-        disposition=disposition,
-    )
+    if not _routine_skip(tick_result.skipped_reason):
+        append_tick_run_record(
+            started_at,
+            entrypoint=entrypoint,
+            requested_project=project_name,
+            projects=tuple(projects_run),
+            result=tick_result,
+            error=errors[0] if errors else None,
+            disposition=disposition,
+        )
     return tick_result
+
+
+def _recent_log_paths(project: Path, started_at: str) -> list[str]:
+    try:
+        return [
+            str(path)
+            for path in (project / ".moon" / "logs").glob("*")
+            if path.is_file()
+            and path.stat().st_mtime >= datetime.fromisoformat(started_at).timestamp()
+        ]
+    except OSError:
+        return []  # Optional log references must not erase completed work metrics.
 
 
 def append_tick_run_record(

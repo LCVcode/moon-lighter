@@ -54,6 +54,10 @@ Write `.moon/agent-result.json` as JSON:
 }
 ```
 
+Optional `current_state`, `next_step`, and `stop_reason` string fields may accompany
+`summary`. Provide explicit concise handoff context when known; Moon retains it in
+work reports. Do not invent missing information or run usage checks yourself.
+
 Valid dispositions:
 
 - `active`: concrete autonomous work remains.

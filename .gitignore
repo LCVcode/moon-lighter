@@ -17,3 +17,8 @@ build/
 # Local planning/review artifacts not needed in the repo
 FEASIBILITY_REVIEW.md
 moonlighter-review.md
+
+# Local grilling specifications and task notes
+SPEC.md
+TODO.md
+DECISIONS.md

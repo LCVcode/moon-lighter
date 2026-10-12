@@ -12,7 +12,7 @@ Moonlighter is intentionally conservative:
 - It does not push commits.
 - It keeps human guidance in `.moon/brief.md` and machine state in `.moon/state.json`.
 
-Current status: v1 MVP. Manual runs, scheduled systemd work, project lifecycle, budget and schedule gates, run history, and the Dockerized Pi runner are functional.
+Current status: v1.2 development. Manual runs, scheduled systemd work, project lifecycle, budget and schedule gates, durable work reports, hierarchical run history, and the Dockerized Pi runner are functional.
 
 ## Requirements
 
@@ -336,7 +336,11 @@ moon log --project hydro-helper
 moon log --status skipped
 ```
 
-The v1 history records when `moon run` / `moon work` started and ended, elapsed time, trigger (`manual` or `systemd`), projects run, status, skip reason, error, disposition, and chunk counts. By default, `moon log` hides `moon work` runs that skipped before doing project work, such as timer triggers outside work windows or budget-blocked runs; pass `--all` to include them. Token and usage deltas are planned later.
+History records session and chunk starts/outcomes, elapsed time, trigger, projects, summaries, disposition, available coding metrics, agent token counts, and before/after quota observations. `moon work` shows session totals with indented chunks; `moon run` shows a single item. Unknown values appear as `no data`, and incomplete token subtotals are labeled `partial`. Use `--color never` for plain text or `--color always` for yellow warnings.
+
+New history retains budget blocks and operational failures, but not routine outside-window, paused, or no-eligible-project skips. `--all` can still show routine skips already present in old history. `--status running` and `--status interrupted` expose unfinished work. Old records remain readable with missing metrics marked `no data`.
+
+Quota deltas are account-level percentage-point observations, not precise per-project token costs. Resets and missing observations are labeled rather than estimated. Deeper `moon report` analysis is planned later. See [work report semantics](docs/history.md).
 
 ### `moon run [project]`
 
@@ -462,7 +466,8 @@ Budget behavior:
 
 - Scheduled work fails closed when budget cannot be checked.
 - Manual `moon run` respects budget unless `--ignore-budget` is used.
-- Budget is refreshed after chunks so `moon status` reflects recent usage.
+- Budget is refreshed after chunks so `moon status` reflects recent usage. Observation failures are recorded separately from work outcomes.
+- A session/chunk start must be durably recorded before work launches. History write failures block further work; there is no history-gate bypass flag yet.
 - The weekly budget curve reaches the configured reserve by the final 24 hours before reset.
 
 Runner behavior:

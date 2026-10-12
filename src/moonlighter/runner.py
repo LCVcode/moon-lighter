@@ -22,6 +22,8 @@ from moonlighter.projects import (
     save_project_state,
     state_path,
 )
+from moonlighter.report_usage import read_chunk_tokens, session_offsets, session_usage_lease
+from moonlighter.work_reports import TokenUsage, container_gone
 
 CONTAINER_WORKSPACE = Path("/workspace")
 CONTAINER_HOME = Path("/home/moon-runtime")
@@ -62,6 +64,10 @@ class RunnerResult:
     commit_count: int = 0
     inserted_lines: int = 0
     deleted_lines: int = 0
+    tokens: TokenUsage | None = None
+    current_state: str | None = None
+    next_step: str | None = None
+    stop_reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -82,6 +88,14 @@ class GitMetrics:
 
 
 def run_project_chunk(request: RunnerRequest) -> RunnerResult:
+    """Prevent overlapping writes to a resumed project session."""
+    with session_usage_lease(_project_session_storage(request.project_dir)):
+        if not container_gone(container_name(request.project_dir.name)):
+            raise RunnerError("project container is still running or its state is unknown")
+        return _run_project_chunk(request)
+
+
+def _run_project_chunk(request: RunnerRequest) -> RunnerResult:
     """Run one bounded Pi work chunk for a project in Docker."""
     start = time.monotonic()
     run_started_at = request.now or datetime.now().astimezone()
@@ -94,6 +108,7 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
     git_before = collect_git_snapshot(project_dir)
     session_storage = _project_session_storage(project_dir)
     session_storage.mkdir(parents=True, exist_ok=True)
+    usage_offsets = session_offsets(session_storage)
     runtime_home = _project_runtime_home(project_dir)
     prepare_runtime_home(runtime_home, deadline_epoch=deadline_epoch)
 
@@ -109,6 +124,7 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
     session_id: str | None = None
     session_file: str | None = None
     error: str | None = None
+    settled = False
     try:
         _send(process, {"id": "state-1", "type": "get_state"})
         state_response = _read_response(process, "state-1", timeout_seconds=30)
@@ -120,7 +136,6 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
             raise RunnerError(f"Pi rejected work prompt: {prompt_response}")
 
         wrap_sent = False
-        settled = False
         soft_wrap_at = deadline - 120
         while time.monotonic() < deadline:
             if not wrap_sent and time.monotonic() >= soft_wrap_at:
@@ -153,6 +168,7 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
 
     disposition: str | None = None
     summary: str | None = None
+    context: dict[str, str | None] = {}
     try:
         current_state = load_project_state(state_path(project_dir))
         updated = replace(
@@ -164,6 +180,10 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
         result_file = agent_result_path(project_dir)
         if result_file.exists():
             agent_result = load_agent_result(result_file)
+            raw_result = json.loads(result_file.read_text(encoding="utf-8"))
+            for key in ("current_state", "next_step", "stop_reason"):
+                value = raw_result.get(key)
+                context[key] = value if isinstance(value, str) else None
             disposition = agent_result.disposition
             summary = agent_result.summary
             updated = replace(
@@ -191,6 +211,12 @@ def run_project_chunk(request: RunnerRequest) -> RunnerResult:
         commit_count=metrics.commit_count,
         inserted_lines=metrics.inserted_lines,
         deleted_lines=metrics.deleted_lines,
+        tokens=read_chunk_tokens(session_storage, usage_offsets, run_started_at),
+        current_state=context.get("current_state"),
+        next_step=context.get("next_step"),
+        stop_reason=context.get("stop_reason")
+        or error
+        or ("agent settled" if settled else "chunk deadline reached"),
     )
 
 

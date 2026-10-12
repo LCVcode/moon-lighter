@@ -36,3 +36,6 @@ Do not push commits. Do not edit `.moon/state.json` directly.
 ```
 
 Valid dispositions are `active`, `needs_direction`, `complete`, and `tabled`.
+Optional `current_state`, `next_step`, and `stop_reason` string fields provide
+explicit context for Moon's work reports. Include them when known; do not infer
+usage or perform budget checks.
