@@ -12,7 +12,7 @@ Moonlighter is intentionally conservative:
 - It does not push commits.
 - It keeps human guidance in `.moon/brief.md` and machine state in `.moon/state.json`.
 
-Current status: v1.2.0 implemented and awaiting final acceptance. Durable session history now integrates capture, tree-form logs, project/global status, and activity reports. Manual/scheduled work and host-owned budget/schedule gates remain unchanged.
+Current release: v1.2.0. Durable session history now integrates capture, tree-form logs, project/global status, and activity reports. Manual/scheduled work and host-owned budget/schedule gates remain unchanged.
 
 ## Requirements
 

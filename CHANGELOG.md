@@ -4,7 +4,7 @@ All notable changes to Moonlighter will be documented in this file.
 
 This project follows Semantic Versioning.
 
-## 1.2.0 - Unreleased
+## 1.2.0 - 2026-10-12
 
 ### Added
 

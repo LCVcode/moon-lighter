@@ -2,10 +2,10 @@
 
 ## Current State
 
-Package version: **1.2.0**, implemented and validated on `feature/durable-history`.
-The complete session-history capability is ready for final user acceptance; it has
-not been published. Previous master baseline: **1.1.0**, pushed in `bfcb1de`.
-Latest existing release tag: `v1.0.0`; neither update has been tagged or published.
+Release: **1.2.0**, accepted on **2026-10-12**, tagged `v1.2.0` on `master`.
+The complete session-history capability includes capture, logs, status, reports,
+compatibility, and hardening. Previous master baseline: **1.1.0** (`bfcb1de`).
+This is a Git release; no package-registry publication is implied.
 
 The 1.0.0 baseline provides project lifecycle/priority management, manual and
 scheduled work, Dockerized Pi/OpenAI Codex execution, host-owned budget/schedule
@@ -56,7 +56,7 @@ without weakening host-owned gates, workspace preservation, or no-push safety.
 
 | Cycle ID | Capability / outcome | Dependencies | Status |
 |---|---|---|---|
-| history | Capture durable work/usage history and integrate it into logs, status, and reports | Existing runner/history | Implemented; final acceptance pending |
+| history | Capture durable work/usage history and integrate it into logs, status, and reports | Existing runner/history | Complete; released in 1.2.0 |
 | control | Budget-aware chunk guidance and approved pacing options | History observations | Planned; policy decisions needed |
 | modes | Strict/MVP/creative behavior integrated with roadmap planning | Existing planning skills; control precedes this cycle | Planned |
 | health | Operational diagnostics, actionable output, and relevant status integration | History and gate observations | Planned |
@@ -73,7 +73,7 @@ to defer correctness.
 ### history.capture - Durable capture and basic log view
 
 - Stage: foundation
-- Status: implemented and committed; final acceptance/publication pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0, shared with all history integrations and hardening
 - Evidence: deterministic lifecycle, persistence, usage, hierarchy, compatibility,
   and CLI smoke checks; no authenticated agent run was launched for validation
@@ -115,7 +115,7 @@ to defer correctness.
 ### history.log - Existing log integration (included in history.capture)
 
 - Stage: integration
-- Status: implemented, refined, and committed; final acceptance/publication pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0, shared with the entire history cycle
 - Issues: #11, history consumers from #10
 - Scope: retain the existing overview/filters and add compact start time, duration,
@@ -128,7 +128,7 @@ to defer correctness.
 ### history.project-status - Shared history queries and project status
 
 - Stage: integration
-- Status: implemented and validated; final acceptance pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0 (same session-history release)
 - Depends on: history.capture, history.log
 - Issue: [#12](https://github.com/LCVcode/moon-lighter/issues/12)
@@ -156,7 +156,7 @@ to defer correctness.
 ### history.global-status - Global status integration
 
 - Stage: integration
-- Status: implemented and validated; final acceptance pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0 (same session-history release)
 - Depends on: shared queries from history.project-status
 - Implementation steps:
@@ -174,7 +174,7 @@ to defer correctness.
 ### history.reports - Deep session-history reporting
 
 - Stage: integration
-- Status: implemented and validated; final acceptance pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0 (same session-history release)
 - Depends on: history.capture and shared history queries
 - Issues: [#8](https://github.com/LCVcode/moon-lighter/issues/8), report consumers from #10
@@ -207,7 +207,7 @@ to defer correctness.
 ### history.hardening - Complete and validate the 1.2.0 capability
 
 - Stage: stabilization
-- Status: implemented and validated; final acceptance pending
+- Status: complete; accepted and released in 1.2.0
 - Release version: 1.2.0 (same session-history release)
 - Depends on: all history consumers above
 - Implementation steps:
@@ -306,7 +306,7 @@ every backend at once; dashboards; new config-editing commands not yet requested
 
 All history increments are implemented. Final evidence: 232 automated tests, Ruff
 lint/format, ty, package build, and isolated installed-CLI capture/log/status/report
-smoke checks. Reinstallation is complete; final acceptance remains with the user.
+smoke checks. Reinstallation and final user acceptance are complete; release version is 1.2.0.
 No authenticated agent chunk was launched by the release validation process.
 Record progress, acceptance evidence, and resolved versions here. Preserve completed
 entries; reassess and detail the following cycle only when it becomes next.
