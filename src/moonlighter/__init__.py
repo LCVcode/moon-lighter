@@ -40,6 +40,7 @@ from moonlighter.projects import (
     set_project_priority,
     state_path,
 )
+from moonlighter.report_cli import ReportCommandError, configure_report_parser, handle_report
 from moonlighter.run_history import (
     RunHistoryError,
     filter_run_records,
@@ -230,6 +231,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include moon work runs that skipped before doing project work.",
     )
+
+    report_parser = subcommands.add_parser(
+        "report", help="Summarize historical sessions and usage."
+    )
+    add_project_completer(configure_report_parser(report_parser))
 
     run_parser = subcommands.add_parser("run", help="Manually run one work chunk now.")
     run_project_arg = run_parser.add_argument(
@@ -860,6 +866,10 @@ def main(argv: list[str] | None = None) -> None:
             exit_code = handle_status(args.project, args.color)
         elif args.command == "log":
             exit_code = handle_log(args.limit, args.project, args.status, args.all, args.color)
+        elif args.command == "report":
+            exit_code = handle_report(
+                args, state_dir=default_state_dir(), color=should_color(args.color)
+            )
         elif args.command == "run":
             exit_code = handle_run(args.project, args.chunk_minutes, args.ignore_budget)
         elif args.command == "work":
@@ -870,6 +880,7 @@ def main(argv: list[str] | None = None) -> None:
         CliError,
         ProjectError,
         RunHistoryError,
+        ReportCommandError,
         RuntimeStateError,
         ServiceError,
         TickError,

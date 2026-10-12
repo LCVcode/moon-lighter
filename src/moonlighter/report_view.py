@@ -40,12 +40,12 @@ def metrics(
     return f"tokens={count}  quota Δ5h={deltas[0]} Δweek={deltas[1]} (account)"
 
 
-def report_lines(report: SessionReport, color: bool) -> list[str]:
+def report_lines(report: SessionReport, color: bool, *, details: bool = False) -> list[str]:
     if report.entrypoint == "run" and len(report.chunks) == 1:
         chunk = report.chunks[0]
         return [
             "  " + metrics(chunk.tokens, report.budget_before, report.budget_after, color),
-            *_context(chunk, "  ", color),
+            *_context(chunk, "  ", color, details=details),
         ]
     lines = [
         "  " + metrics(token_total(report.chunks), report.budget_before, report.budget_after, color)
@@ -56,11 +56,17 @@ def report_lines(report: SessionReport, color: bool) -> list[str]:
         lines.append(
             "      " + metrics(chunk.tokens, chunk.budget_before, chunk.budget_after, color)
         )
-        lines.extend(_context(chunk, "      ", color))
+        lines.extend(_context(chunk, "      ", color, details=details))
     return lines
 
 
-def _context(chunk: ChunkReport, prefix: str, color: bool) -> list[str]:
+def _context(
+    chunk: ChunkReport,
+    prefix: str,
+    color: bool,
+    *,
+    details: bool = False,
+) -> list[str]:
     lines = []
     if chunk.summary:
         lines.append(prefix + " ".join(chunk.summary.split()))
@@ -70,6 +76,16 @@ def _context(chunk: ChunkReport, prefix: str, color: bool) -> list[str]:
         lines.append(
             prefix + f"commits={chunk.commits} diff=+{chunk.inserted_lines} -{chunk.deleted_lines}"
         )
+    if details:
+        for label, value in (
+            ("State", chunk.current_state),
+            ("Next", chunk.next_step),
+            ("Disposition", chunk.disposition),
+            ("Stopped", chunk.stop_reason),
+        ):
+            if value:
+                lines.append(prefix + label + ": " + " ".join(value.split()))
+        lines.extend(prefix + "Log: " + path for path in chunk.log_paths)
     # Missing logs do not invalidate retained metrics/context.
     from pathlib import Path
 

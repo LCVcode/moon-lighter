@@ -31,7 +31,7 @@ def test_main_without_command_prints_help(capsys: pytest.CaptureFixture[str]) ->
     assert "setup" in captured.out
     assert "light                " not in captured.out
     assert (
-        "{config,completion,setup,service,init,claim,release,activate,brief,priority,pause,resume,status,log,run,work}"
+        "{config,completion,setup,service,init,claim,release,activate,brief,priority,pause,resume,status,log,report,run,work}"
         in captured.out
     )
 
