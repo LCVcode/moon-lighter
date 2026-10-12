@@ -220,6 +220,31 @@ def test_completed_identity_cannot_be_overwritten(tmp_path: Path) -> None:
     assert load_report(report_path(tmp_path, report.run_id)).status == "success"
 
 
+@pytest.mark.parametrize(
+    "code,stdout,stderr,gone",
+    [
+        (1, "", "error: no such object: worker", True),
+        (1, "", "Error: No such object: worker", True),
+        (1, "", "Error response from daemon: No such container: worker", True),
+        (0, "false\n", "", True),
+        (0, "true\n", "", False),
+        (1, "", "Cannot connect to Docker daemon", False),
+        (1, "", "permission denied", False),
+        (1, "", "no such object: different-worker-name", False),
+    ],
+)
+def test_container_absence_recognizes_docker_variants(monkeypatch, code, stdout, stderr, gone):
+    from subprocess import CompletedProcess
+
+    from moonlighter.work_reports import container_gone
+
+    monkeypatch.setattr(
+        "moonlighter.work_reports.subprocess.run",
+        lambda *_args, **_kwargs: CompletedProcess([], code, stdout, stderr),
+    )
+    assert container_gone("worker") is gone
+
+
 def test_cli_log_color_and_status_filters(tmp_path: Path, monkeypatch, capsys) -> None:
     import moonlighter
 

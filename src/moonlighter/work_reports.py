@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import tempfile
 from dataclasses import asdict, dataclass, field
@@ -336,8 +337,16 @@ def container_gone(name: str) -> bool:
             timeout=5,
             check=False,
         )
+        detail = result.stderr.casefold()
+        absent = (
+            re.search(
+                r"no such (?:object|container):?\s+" + re.escape(name.casefold()) + r"(?=\s|$)",
+                detail,
+            )
+            is not None
+        )
         return (result.returncode == 0 and result.stdout.strip() == "false") or (
-            result.returncode != 0 and "No such object" in result.stderr
+            result.returncode != 0 and absent
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
