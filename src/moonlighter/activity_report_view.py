@@ -76,7 +76,7 @@ def render_activity_report(
     for window in ("5h", "weekly"):
         comparable = sum(
             quota_delta(record.report.budget_before, record.report.budget_after, window).endswith(
-                "pp"
+                "%"
             )
             for record in records
             if record.report

@@ -37,7 +37,7 @@ def metrics(
         warning(value, color) if value in ("no data", "unknown reset") else value
         for value in deltas
     ]
-    return f"tokens={count}  quota Δ5h={deltas[0]} Δweek={deltas[1]} (account)"
+    return f"tokens={count}  quota Δ5h={deltas[0]} Δweek={deltas[1]}"
 
 
 def report_lines(report: SessionReport, color: bool, *, details: bool = False) -> list[str]:

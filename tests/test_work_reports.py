@@ -139,8 +139,8 @@ def test_quota_reset_missing_and_nonoverlapping_deltas() -> None:
     reset = (now + timedelta(days=1)).isoformat()
     before = UsageObservation(now.isoformat(), 90, 80, reset, reset)
     after = replace(before, five_hour_remaining=70, weekly_remaining=78)
-    assert quota_delta(before, after, "5h") == "20.0pp"
-    assert quota_delta(before, after, "weekly") == "2.0pp"
+    assert quota_delta(before, after, "5h") == "20.0%"
+    assert quota_delta(before, after, "weekly") == "2.0%"
     assert quota_delta(None, after, "5h") == "no data"
     assert quota_delta(before, replace(after, weekly_reset=None), "weekly") == "unknown reset"
     assert quota_delta(before, replace(after, weekly_remaining=100), "weekly") == "reset/changed"
@@ -158,6 +158,7 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     output = render_run_log(records, color=True)
     assert "    2026-01-01" in output
     assert "tokens=100" in output
+    assert "(account)" not in output
     assert "\033[33mno data" in output
     assert "detailed log unavailable" in output
     report.entrypoint = "run"

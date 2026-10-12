@@ -53,7 +53,7 @@ def quota_delta(
         return "reset/changed"
     if datetime.fromisoformat(after.checked_at) >= datetime.fromisoformat(reset_start):
         return "reset/changed"
-    return f"{start - end:.1f}pp"
+    return f"{start - end:.1f}%"
 
 
 @contextmanager
