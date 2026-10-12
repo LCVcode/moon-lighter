@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import shutil
+import textwrap
+
 from moonlighter.report_usage import quota_delta
 from moonlighter.work_reports import ChunkReport, SessionReport, TokenUsage, UsageObservation
 
@@ -60,6 +63,17 @@ def report_lines(report: SessionReport, color: bool, *, details: bool = False) -
     return lines
 
 
+def summary_lines(summary: str, prefix: str, *, width: int | None = None) -> list[str]:
+    """Explicit wrapping prevents terminal continuation lines escaping the tree."""
+    columns = width if width is not None else shutil.get_terminal_size((100, 24)).columns
+    return textwrap.wrap(
+        " ".join(summary.split()),
+        width=max(columns, len(prefix) + 4),
+        initial_indent=prefix + "- ",
+        subsequent_indent=prefix + "  ",
+    )
+
+
 def _context(
     chunk: ChunkReport,
     prefix: str,
@@ -69,7 +83,7 @@ def _context(
 ) -> list[str]:
     lines = []
     if chunk.summary:
-        lines.append(prefix + " ".join(chunk.summary.split()))
+        lines.extend(summary_lines(chunk.summary, prefix))
     if chunk.error:
         lines.append(prefix + "error: " + " ".join(chunk.error.split()))
     if chunk.commits is not None:

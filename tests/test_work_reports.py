@@ -13,7 +13,7 @@ from moonlighter.report_usage import (
     session_offsets,
     session_usage_lease,
 )
-from moonlighter.report_view import token_total
+from moonlighter.report_view import summary_lines, token_total
 from moonlighter.run_history import filter_run_records, read_run_records, render_run_log
 from moonlighter.work_reports import (
     ChunkReport,
@@ -81,6 +81,17 @@ def test_failed_atomic_replace_keeps_previous_report(tmp_path: Path, monkeypatch
         save_report(tmp_path, report)
     assert load_report(report_path(tmp_path, report.run_id)).status == "running"
     assert len(list((tmp_path / "reports").glob("*"))) == 1
+
+
+@pytest.mark.parametrize("prefix", ["  ", "      "])
+def test_summary_continuations_keep_hanging_tree_indent(prefix: str) -> None:
+    summary = "Implemented several changes and validated the behavior with many focused tests. " * 3
+    lines = summary_lines(summary, prefix, width=44)
+    assert len(lines) > 1
+    assert lines[0].startswith(prefix + "- ")
+    assert all(line.startswith(prefix + "  ") for line in lines[1:])
+    assert all(len(line) <= 44 for line in lines)
+    assert " ".join(line.strip().removeprefix("- ") for line in lines) == summary.strip()
 
 
 def test_partial_tokens_and_missing_values() -> None:
