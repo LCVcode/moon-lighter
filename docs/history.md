@@ -15,7 +15,9 @@ logical chunk, displayed without a redundant child row.
       tokens=no data  quota Δ5h=3.0% Δweek=0.4%
 ```
 
-Keep using `moon log --limit`, `--project`, `--status`, and `--all`. Additional
+`moon log` shows the latest five sessions by default (child chunks do not count
+against that limit). Use `moon log --limit N` to show more. Keep using `--project`,
+`--status`, and `--all`. Additional
 status filters include `running` and `interrupted`. `--color auto|always|never`
 controls yellow missing/partial-data warnings. Plain output never relies on color
 alone. Project filtering selects sessions containing that project; session totals

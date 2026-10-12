@@ -214,7 +214,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     log_parser = subcommands.add_parser("log", help="Show recent Moonlighter run history.")
-    log_parser.add_argument("--limit", type=int, default=20, help="Maximum records to show.")
+    log_parser.add_argument(
+        "--limit", type=int, default=5, help="Maximum sessions to show (default: 5)."
+    )
     log_project_arg = log_parser.add_argument("--project", help="Only show runs for a project.")
     add_project_completer(log_project_arg)
     log_parser.add_argument(

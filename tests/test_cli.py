@@ -12,6 +12,12 @@ from moonlighter.run_history import RunRecord, append_run_record
 from moonlighter.service import ServiceStatus
 
 
+def test_log_default_limit_and_override() -> None:
+    parser = moonlighter.build_parser()
+    assert parser.parse_args(["log"]).limit == 5
+    assert parser.parse_args(["log", "--limit", "25"]).limit == 25
+
+
 def test_version_matches_installed_package(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc:
         main(["--version"])
