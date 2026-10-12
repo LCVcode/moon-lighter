@@ -136,7 +136,11 @@ def save_report(state_dir: Path, report: SessionReport) -> None:
 def load_report(path: Path) -> SessionReport:
     try:
         data = json.loads(path.read_text())
-        if not isinstance(data, dict) or data.get("schema_version") != 1:
+        if (
+            not isinstance(data, dict)
+            or isinstance(data.get("schema_version"), bool)
+            or data.get("schema_version") != 1
+        ):
             raise ValueError("unsupported report schema")
         chunks = data.pop("chunks")
         if not isinstance(chunks, list):
@@ -184,6 +188,9 @@ def _validate_report(report: SessionReport) -> None:
             if not isinstance(observation, UsageObservation):
                 raise ValueError("invalid observation")
             datetime.fromisoformat(observation.checked_at)
+            for value in (observation.source, observation.error):
+                if value is not None and not isinstance(value, str):
+                    raise ValueError("invalid observation context")
             for value in (observation.five_hour_remaining, observation.weekly_remaining):
                 if value is not None and (
                     isinstance(value, bool)
@@ -199,6 +206,10 @@ def _validate_report(report: SessionReport) -> None:
         isinstance(value, str) for value in (report.run_id, report.entrypoint, report.trigger)
     ):
         raise ValueError("invalid report identity")
+    if report.requested_project is not None and not isinstance(report.requested_project, str):
+        raise ValueError("invalid requested project")
+    if len({chunk.chunk_id for chunk in report.chunks}) != len(report.chunks):
+        raise ValueError("duplicate chunk identity")
     for chunk in report.chunks:
         for value in (
             chunk.summary,
@@ -208,6 +219,7 @@ def _validate_report(report: SessionReport) -> None:
             chunk.provider,
             chunk.model,
             chunk.container,
+            chunk.runner,
         ):
             if value is not None and not isinstance(value, str):
                 raise ValueError("invalid chunk context")
@@ -225,6 +237,10 @@ def _validate_report(report: SessionReport) -> None:
         if chunk.tokens is not None:
             if not isinstance(chunk.tokens, TokenUsage):
                 raise ValueError("invalid tokens")
+            if not isinstance(chunk.tokens.partial, bool) or not isinstance(
+                chunk.tokens.source, str
+            ):
+                raise ValueError("invalid token metadata")
             for value in (
                 chunk.tokens.total,
                 chunk.tokens.input,

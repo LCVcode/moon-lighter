@@ -76,7 +76,7 @@ def read_run_records(
     path = run_history_path(state_dir)
     records: list[RunRecord] = []
     try:
-        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        lines = path.read_bytes().splitlines() if path.exists() else []
     except OSError as exc:
         if strict:
             raise RunHistoryError(f"failed to read run history {path}: {exc}") from exc
@@ -98,7 +98,9 @@ def read_run_records(
                 raise RunHistoryError(detail) from exc
             if issues is not None:
                 issues.append(detail)
-    by_id = {record.run_id: record for record in reversed(records)}
+    by_id: dict[str, RunRecord] = {}
+    for record in reversed(records):
+        by_id.setdefault(record.run_id, record)
     for report in read_reports(state_dir, reconcile=reconcile, issues=issues):
         chunks = report.chunks
         status: RunStatus = (
@@ -146,7 +148,11 @@ def filter_run_records(
     for record in records:
         if not include_no_work_skips and is_no_work_skip(record):
             continue
-        if project is not None and project not in record.projects:
+        if (
+            project is not None
+            and project not in record.projects
+            and project != record.requested_project
+        ):
             continue
         if status is not None and record.status != status:
             continue
@@ -189,7 +195,20 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
         else:
             lines.extend(
                 render_tree(
-                    [TreeNode([metrics(None, None, None, color, duration=record.elapsed_seconds)])]
+                    [
+                        TreeNode(
+                            [
+                                metrics(
+                                    None,
+                                    None,
+                                    None,
+                                    color,
+                                    duration=record.elapsed_seconds,
+                                    show_missing=False,
+                                )
+                            ]
+                        )
+                    ]
                 )
             )
     return "\n".join(lines) + "\n"

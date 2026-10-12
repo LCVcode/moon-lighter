@@ -44,7 +44,6 @@ from moonlighter.report_cli import ReportCommandError, configure_report_parser, 
 from moonlighter.run_history import (
     RunHistoryError,
     filter_run_records,
-    read_run_records,
     render_run_log,
 )
 from moonlighter.runtime_state import RuntimeStateError, set_global_paused
@@ -710,15 +709,25 @@ def handle_log(
     """Handle `moon log`."""
     if limit <= 0:
         raise CliError("--limit must be greater than zero")
-    records = read_run_records(default_state_dir())
+    from moonlighter.history_queries import load_history
+    from moonlighter.report_view import warning
+
+    history = load_history(default_state_dir(), reconcile=True)
+    color = should_color(color_choice)
+    if history.warnings:
+        print(warning("History incomplete: displaying readable records only.", color))
+        for detail in history.warnings[:3]:
+            print("  " + detail)
+        if len(history.warnings) > 3:
+            print(f"  ... {len(history.warnings) - 3} additional warning(s)")
     filtered = filter_run_records(
-        records,
+        history.records,
         limit=limit,
         project=project,
         status=status,
         include_no_work_skips=include_all,
     )
-    print(render_run_log(filtered, color=should_color(color_choice)), end="")
+    print(render_run_log(filtered, color=color), end="")
     return 0
 
 

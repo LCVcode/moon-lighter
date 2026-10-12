@@ -182,7 +182,8 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     assert "  └─ 2026-01-01" in output
     assert "Tokens: 100" in output
     assert "(account)" not in output
-    assert "\033[33mno data" in output
+    assert "Quota:" not in output
+    assert "\033[33mdetailed log unavailable" in output
     assert "detailed log unavailable" in output
     report.entrypoint = "run"
     save_report(tmp_path, report)

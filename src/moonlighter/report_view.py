@@ -35,6 +35,7 @@ def metrics(
     *,
     duration: float | None = None,
     show_duration: bool = True,
+    show_missing: bool = True,
 ) -> str:
     count = (
         warning("no data", color)
@@ -51,7 +52,13 @@ def metrics(
     if show_duration:
         elapsed = warning("no data", color) if duration is None else format_elapsed(duration)
         parts.append(f"Duration: {elapsed}")
-    parts.append(f"Quota: 5h {deltas[0]}, week {deltas[1]}")
+    quota = [
+        f"{label} {value}"
+        for label, value in zip(("5h", "week"), deltas, strict=True)
+        if show_missing or "no data" not in value
+    ]
+    if quota:
+        parts.append("Quota: " + ", ".join(quota))
     return " · ".join(parts)
 
 
@@ -74,6 +81,7 @@ def report_lines(
                         report.budget_after,
                         color,
                         duration=chunk.elapsed_seconds,
+                        show_missing=details,
                     )
                 ]
             )
@@ -90,6 +98,7 @@ def report_lines(
                         color,
                         duration=report.elapsed_seconds,
                         show_duration=include_session_duration,
+                        show_missing=details,
                     )
                 ]
             )
@@ -104,6 +113,7 @@ def report_lines(
                             chunk.budget_after,
                             color,
                             duration=chunk.elapsed_seconds,
+                            show_missing=details,
                         )
                     ]
                 )
@@ -182,10 +192,19 @@ def _context(
         lines.extend(summary_lines(chunk.summary, prefix, width=width))
     if chunk.error:
         lines.extend(detail_lines("error", chunk.error, prefix, width=width))
-    if chunk.commits is not None:
-        lines.append(
-            prefix + f"commits={chunk.commits} diff=+{chunk.inserted_lines} -{chunk.deleted_lines}"
-        )
+    coding = []
+    if chunk.commits is not None and (details or chunk.commits != 0):
+        coding.append(f"commits={chunk.commits}")
+    changes = (chunk.inserted_lines, chunk.deleted_lines)
+    if any(value is not None for value in changes) and (
+        details or any(value not in (None, 0) for value in changes)
+    ):
+        added, removed = [
+            str(value) if value is not None else warning("no data", color) for value in changes
+        ]
+        coding.append(f"diff=+{added} -{removed}")
+    if coding:
+        lines.append(prefix + " ".join(coding))
     if details:
         for label, value in (
             ("State", chunk.current_state),

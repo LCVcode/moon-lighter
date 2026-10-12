@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fcntl
 import json
+import math
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
@@ -49,9 +50,11 @@ def quota_delta(
         return "no data"
     if reset_start is None or reset_end is None:
         return "unknown reset"
-    if reset_start != reset_end or end > start:
+    reset_before = datetime.fromisoformat(reset_start).astimezone()
+    reset_after = datetime.fromisoformat(reset_end).astimezone()
+    if reset_before != reset_after or end > start:
         return "reset/changed"
-    if datetime.fromisoformat(after.checked_at) >= datetime.fromisoformat(reset_start):
+    if datetime.fromisoformat(after.checked_at).astimezone() >= reset_before:
         return "reset/changed"
     return f"{start - end:.1f}%"
 
@@ -81,11 +84,22 @@ def read_chunk_tokens(
     offsets: dict[str, int] | None,
     started_at: datetime | None = None,
 ) -> TokenUsage | None:
+    try:
+        return _read_chunk_tokens(storage, offsets, started_at)
+    except OSError:
+        return None  # Optional post-run observation must not turn successful work into failure.
+
+
+def _read_chunk_tokens(
+    storage: Path,
+    offsets: dict[str, int] | None,
+    started_at: datetime | None,
+) -> TokenUsage | None:
     if offsets is None:
         return None
     totals = {"totalTokens": 0, "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0}
     seen = 0
-    missing = False
+    missing = any(not Path(name).is_file() for name in offsets)
     unavailable: set[str] = set()
     for path in storage.rglob("*.jsonl"):
         offset = offsets.get(str(path), 0)
@@ -103,8 +117,27 @@ def read_chunk_tokens(
                     if entry.get("type") != "message" or message.get("role") != "assistant":
                         continue
                     timestamp = message.get("timestamp")
+                    # Forked files may copy old messages; newly written bytes alone
+                    # cannot establish attribution without a trustworthy timestamp.
                     if (
                         started_at is not None
+                        and str(path) not in offsets
+                        and (
+                            not isinstance(timestamp, (int, float))
+                            or isinstance(timestamp, bool)
+                            or not math.isfinite(timestamp)
+                        )
+                    ):
+                        try:
+                            timestamp = (
+                                datetime.fromisoformat(entry["timestamp"]).timestamp() * 1000
+                            )
+                        except (KeyError, ValueError, TypeError):
+                            missing = True
+                            continue
+                    if (
+                        started_at is not None
+                        and str(path) not in offsets
                         and isinstance(timestamp, (int, float))
                         and timestamp < started_at.timestamp() * 1000
                     ):
