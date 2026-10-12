@@ -63,27 +63,41 @@ def append_run_record(state_dir: Path, record: RunRecord) -> None:
         file.write(f"{json.dumps(run_record_to_json(record), sort_keys=True)}\n")
 
 
-def read_run_records(state_dir: Path) -> tuple[RunRecord, ...]:
+def read_run_records(
+    state_dir: Path,
+    *,
+    strict: bool = True,
+    reconcile: bool = True,
+    issues: list[str] | None = None,
+) -> tuple[RunRecord, ...]:
     """Read run records from newest to oldest."""
     path = run_history_path(state_dir)
     records: list[RunRecord] = []
     try:
         lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     except OSError as exc:
-        raise RunHistoryError(f"failed to read run history {path}: {exc}") from exc
+        if strict:
+            raise RunHistoryError(f"failed to read run history {path}: {exc}") from exc
+        if issues is not None:
+            issues.append(f"History index unavailable: {exc}")
+        lines = []
 
     for line_number, line in enumerate(lines, start=1):
         if not line.strip():
             continue
         try:
             data = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise RunHistoryError(f"invalid run history JSON on line {line_number}: {exc}") from exc
-        if not isinstance(data, dict):
-            raise RunHistoryError(f"run history line {line_number} must be a JSON object")
-        records.append(parse_run_record(data, line_number=line_number))
+            if not isinstance(data, dict):
+                raise RunHistoryError("record must be a JSON object")
+            records.append(parse_run_record(data, line_number=line_number))
+        except (ValueError, TypeError) as exc:
+            detail = f"invalid run history JSON/record on line {line_number}: {exc}"
+            if strict:
+                raise RunHistoryError(detail) from exc
+            if issues is not None:
+                issues.append(detail)
     by_id = {record.run_id: record for record in reversed(records)}
-    for report in read_reports(state_dir):
+    for report in read_reports(state_dir, reconcile=reconcile, issues=issues):
         chunks = report.chunks
         status: RunStatus = (
             report.status
@@ -108,7 +122,13 @@ def read_run_records(state_dir: Path) -> tuple[RunRecord, ...]:
             failed_chunks=sum(c.status == "failed" for c in chunks),
             report=report,
         )
-    return tuple(sorted(by_id.values(), key=lambda record: record.started_at, reverse=True))
+    return tuple(
+        sorted(
+            by_id.values(),
+            key=lambda record: datetime.fromisoformat(record.started_at).astimezone(),
+            reverse=True,
+        )
+    )
 
 
 def filter_run_records(
@@ -214,6 +234,8 @@ def parse_run_record(data: dict[str, object], *, line_number: int | None = None)
     if status not in {"skipped", "success", "failed", "running", "interrupted"}:
         raise RunHistoryError(f"{label} status must be one of: skipped, success, failed")
 
+    datetime.fromisoformat(_required_string(data, "started_at", label))
+    datetime.fromisoformat(_required_string(data, "ended_at", label))
     return RunRecord(
         schema_version=schema_version,
         run_id=_required_string(data, "run_id", label),

@@ -12,6 +12,11 @@ from pathlib import Path
 from moonlighter.budget import weekly_remaining_floor
 from moonlighter.colors import BLUE, BOLD, CYAN, DIM, GREEN, MAGENTA, RED, YELLOW, style
 from moonlighter.config import Config, default_state_dir
+from moonlighter.history_status import (
+    global_history_lines,
+    meaningful_log_summary,
+    project_history_lines,
+)
 from moonlighter.projects import (
     BRIEF_PLACEHOLDER,
     PRIORITY_TIERS,
@@ -104,6 +109,8 @@ def render_global_status(
 
     lines.append("")
     lines.extend(_render_last_known_budget(default_state_dir(), config=config, color=color))
+    lines.append("")
+    lines.extend(global_history_lines(default_state_dir()))
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -160,6 +167,8 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
     lines.append(f"Pi session ID: {status.state.pi_session_id or 'none'}")
     lines.append(f"Pi session file: {status.state.pi_session_file or 'none'}")
     lines.append(f"Last claimed from: {status.state.last_claimed_from or 'none'}")
+    lines.append("")
+    lines.extend(project_history_lines(default_state_dir(), project_name, status.state))
     if status.state.disposition == "needs_direction":
         feedback = feedback_request_text(project_dir, status.state.disposition_summary)
         lines.append("")
@@ -385,13 +394,16 @@ def recent_run_summaries(project_dir: Path, limit: int = 3) -> tuple[str, ...]:
 
     summaries: list[str] = []
     files = sorted((entry for entry in path.iterdir() if entry.is_file()), reverse=True)
-    for entry in files[:limit]:
-        text = entry.read_text(encoding="utf-8", errors="replace").strip()
-        if not text:
-            summaries.append(entry.name)
+    for entry in files:
+        try:
+            text = entry.read_text(encoding="utf-8", errors="replace")
+        except OSError:
             continue
-        first_line = next((line.strip() for line in text.splitlines() if line.strip()), entry.name)
-        summaries.append(first_line[:120])
+        summary = meaningful_log_summary(text)
+        if summary:
+            summaries.append(summary[:120])
+        if len(summaries) >= limit:
+            break
     return tuple(summaries)
 
 

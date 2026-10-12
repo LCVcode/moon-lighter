@@ -273,15 +273,21 @@ class ReportLease:
             path.with_suffix(".lock").unlink(missing_ok=True)
 
 
-def read_reports(state_dir: Path) -> tuple[SessionReport, ...]:
+def read_reports(
+    state_dir: Path,
+    *,
+    reconcile: bool = True,
+    issues: list[str] | None = None,
+) -> tuple[SessionReport, ...]:
     reports = []
     for path in sorted((state_dir / "reports").glob("*.json")):
         try:
             report = load_report(path)
-        except ReportError:
-            # A damaged sidecar must not hide other reports or readable legacy history.
+        except ReportError as exc:
+            if issues is not None:
+                issues.append(str(exc))
             continue
-        if report.status == "running":
+        if reconcile and report.status == "running":
             _reconcile(path, report, state_dir)
         reports.append(report)
     return tuple(reports)
