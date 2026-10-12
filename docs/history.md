@@ -4,15 +4,17 @@
 
 One invocation of `moon work` or `moon run` is one session. A work session may
 contain multiple project chunks; a blocked session has none. Manual runs have one
-logical chunk, displayed without a redundant child row.
+logical chunk, displayed without a redundant child row. Tree connectors attach
+metrics, summaries, and chunk rows to their session; vertical guides persist through
+wrapped summary continuations.
 
 ```text
 2026-01-01 02:00  work/systemd success  alpha,beta
-  Tokens: 12,000 partial · Duration: 20m · Quota: 5h −8.0%, week −1.0%
-    2026-01-01T02:00:00+00:00  alpha  success
-      Tokens: 12,000 · Duration: 10m · Quota: 5h −5.0%, week −0.6%
-    2026-01-01T02:10:00+00:00  beta  success
-      Tokens: no data · Duration: 10m · Quota: 5h −3.0%, week −0.4%
+  ├─ Tokens: 12,000 partial · Duration: 20m · Quota: 5h −8.0%, week −1.0%
+  ├─ 2026-01-01T02:00:00+00:00  alpha  success
+  │  └─ Tokens: 12,000 · Duration: 10m · Quota: 5h −5.0%, week −0.6%
+  └─ 2026-01-01T02:10:00+00:00  beta  success
+     └─ Tokens: no data · Duration: 10m · Quota: 5h −3.0%, week −0.4%
 ```
 
 `moon log` shows the latest five sessions by default (child chunks do not count

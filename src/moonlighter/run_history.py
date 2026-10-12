@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_view import metrics, report_lines
 from moonlighter.schedule import format_duration
 from moonlighter.work_reports import SessionReport, read_reports
@@ -183,12 +184,12 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
         lines.append(f"{when}  {source:<13} {record.status:<7} {subject}")
         if record.report:
             lines.extend(report_lines(record.report, color))
-            if record.report.error:
-                lines.append("  error: " + " ".join(record.report.error.split()))
-            if record.report.stop_reason and record.status != "skipped":
-                lines.append("  stopped: " + record.report.stop_reason)
         else:
-            lines.append("  " + metrics(None, None, None, color, duration=record.elapsed_seconds))
+            lines.extend(
+                render_tree(
+                    [TreeNode([metrics(None, None, None, color, duration=record.elapsed_seconds)])]
+                )
+            )
     return "\n".join(lines) + "\n"
 
 

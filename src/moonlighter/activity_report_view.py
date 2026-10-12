@@ -128,9 +128,6 @@ def session_detail(record: RunRecord, *, project: str | None, color: bool) -> li
         lines.extend(
             report_lines(report, color, details=True, include_session_duration=project is None)
         )
-        reason = report.error or report.stop_reason
-        if reason:
-            lines.append("  Reason: " + " ".join(reason.split()))
     else:
         lines.append("  Captured chunk/usage detail: " + warning("no data (legacy record)", color))
     return lines

@@ -179,7 +179,7 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     save_report(tmp_path, report)
     records = read_run_records(tmp_path)
     output = render_run_log(records, color=True)
-    assert "    2026-01-01" in output
+    assert "  └─ 2026-01-01" in output
     assert "Tokens: 100" in output
     assert "(account)" not in output
     assert "\033[33mno data" in output
@@ -187,7 +187,7 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     report.entrypoint = "run"
     save_report(tmp_path, report)
     output = render_run_log(read_run_records(tmp_path))
-    assert "    2026-01-01" not in output
+    assert "  └─ 2026-01-01" not in output
     assert "Tokens: 100" in output
     assert "\033[" not in output
 
