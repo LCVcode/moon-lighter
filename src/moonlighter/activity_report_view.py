@@ -125,7 +125,9 @@ def session_detail(record: RunRecord, *, project: str | None, color: bool) -> li
         if project:
             report = replace(report, chunks=matching_chunks(record, project))
             lines.append("Only matching chunks below; quota observations remain shared-account.")
-        lines.extend(report_lines(report, color, details=True))
+        lines.extend(
+            report_lines(report, color, details=True, include_session_duration=project is None)
+        )
         reason = report.error or report.stop_reason
         if reason:
             lines.append("  Reason: " + " ".join(reason.split()))

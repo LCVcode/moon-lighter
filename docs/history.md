@@ -7,12 +7,12 @@ contain multiple project chunks; a blocked session has none. Manual runs have on
 logical chunk, displayed without a redundant child row.
 
 ```text
-2026-01-01 02:00  work/systemd success  20m  alpha,beta
-  tokens=12,000 partial  quota Δ5h=8.0% Δweek=1.0%
-    2026-01-01T02:00:00+00:00  alpha  success  600.0s
-      tokens=12,000  quota Δ5h=5.0% Δweek=0.6%
-    2026-01-01T02:10:00+00:00  beta  success  600.0s
-      tokens=no data  quota Δ5h=3.0% Δweek=0.4%
+2026-01-01 02:00  work/systemd success  alpha,beta
+  Tokens: 12,000 partial · Duration: 20m · Quota: 5h −8.0%, week −1.0%
+    2026-01-01T02:00:00+00:00  alpha  success
+      Tokens: 12,000 · Duration: 10m · Quota: 5h −5.0%, week −0.6%
+    2026-01-01T02:10:00+00:00  beta  success
+      Tokens: no data · Duration: 10m · Quota: 5h −3.0%, week −0.4%
 ```
 
 `moon log` shows the latest five sessions by default (child chunks do not count
@@ -59,7 +59,7 @@ Session and chunk reports retain available pre/post quota percentages, reset tim
 source, timestamps, and errors. Deltas are percentage points of shared account
 quota, not exact Moon token consumption. Concurrent external activity may affect
 them. The compact display uses `%` for percentage-point differences (not relative
-percent changes), and omits the account suffix. A changed/crossed reset is labeled `reset/changed`; missing reset information
+percent changes), shows decreases with a minus sign, and omits the account suffix. A changed/crossed reset is labeled `reset/changed`; missing reset information
 is labeled `unknown reset`. Do not sum parent and child quota deltas.
 
 Pi assistant-message usage is collected only from JSONL data appended during the

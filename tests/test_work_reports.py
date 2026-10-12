@@ -13,7 +13,7 @@ from moonlighter.report_usage import (
     session_offsets,
     session_usage_lease,
 )
-from moonlighter.report_view import summary_lines, token_total
+from moonlighter.report_view import metrics, summary_lines, token_total
 from moonlighter.run_history import filter_run_records, read_run_records, render_run_log
 from moonlighter.work_reports import (
     ChunkReport,
@@ -94,6 +94,18 @@ def test_summary_continuations_keep_hanging_tree_indent(prefix: str) -> None:
     assert " ".join(line.strip().removeprefix("- ") for line in lines) == summary.strip()
 
 
+def test_friendly_metric_labels_and_quota_direction() -> None:
+    reset = "2026-01-02T00:00:00+00:00"
+    before = UsageObservation("2026-01-01T00:00:00+00:00", 80, 85, reset, reset)
+    after = replace(before, five_hour_remaining=76, weekly_remaining=84)
+    assert metrics(TokenUsage(total=12340), before, after, False, duration=480) == (
+        "Tokens: 12,340 · Duration: 8m · Quota: 5h −4.0%, week −1.0%"
+    )
+    assert "−0.0%" not in metrics(None, before, before, False)
+    assert "no data" in metrics(None, None, None, False)
+    assert "partial" in metrics(TokenUsage(total=10, partial=True), before, after, False)
+
+
 def test_partial_tokens_and_missing_values() -> None:
     assert token_total([]) is None
     result = token_total([chunk(10), chunk(None), chunk(20)])
@@ -168,7 +180,7 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     records = read_run_records(tmp_path)
     output = render_run_log(records, color=True)
     assert "    2026-01-01" in output
-    assert "tokens=100" in output
+    assert "Tokens: 100" in output
     assert "(account)" not in output
     assert "\033[33mno data" in output
     assert "detailed log unavailable" in output
@@ -176,7 +188,7 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     save_report(tmp_path, report)
     output = render_run_log(read_run_records(tmp_path))
     assert "    2026-01-01" not in output
-    assert "tokens=100" in output
+    assert "Tokens: 100" in output
     assert "\033[" not in output
 
 

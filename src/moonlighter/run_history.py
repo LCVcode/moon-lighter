@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from moonlighter.report_view import report_lines, warning
+from moonlighter.report_view import metrics, report_lines
 from moonlighter.schedule import format_duration
 from moonlighter.work_reports import SessionReport, read_reports
 
@@ -178,12 +178,9 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
 
     for record in records:
         when = _format_timestamp(record.started_at)
-        elapsed = format_duration_seconds(record.elapsed_seconds)
         source = f"{record.entrypoint}/{record.trigger}"
         subject = ",".join(record.projects) if record.projects else record.skip_reason or "-"
-        if record.report is not None and record.report.elapsed_seconds is None:
-            elapsed = warning("no data", color)
-        lines.append(f"{when}  {source:<13} {record.status:<7} {elapsed:<5} {subject}")
+        lines.append(f"{when}  {source:<13} {record.status:<7} {subject}")
         if record.report:
             lines.extend(report_lines(record.report, color))
             if record.report.error:
@@ -191,7 +188,7 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
             if record.report.stop_reason and record.status != "skipped":
                 lines.append("  stopped: " + record.report.stop_reason)
         else:
-            lines.append("  usage: " + warning("no data", color))
+            lines.append("  " + metrics(None, None, None, color, duration=record.elapsed_seconds))
     return "\n".join(lines) + "\n"
 
 

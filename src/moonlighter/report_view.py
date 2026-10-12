@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import shutil
 import textwrap
+from datetime import timedelta
 
 from moonlighter.report_usage import quota_delta
+from moonlighter.schedule import format_duration
 from moonlighter.work_reports import ChunkReport, SessionReport, TokenUsage, UsageObservation
 
 
@@ -29,6 +31,9 @@ def metrics(
     before: UsageObservation | None,
     after: UsageObservation | None,
     color: bool,
+    *,
+    duration: float | None = None,
+    show_duration: bool = True,
 ) -> str:
     count = (
         warning("no data", color)
@@ -40,24 +45,61 @@ def metrics(
         warning(value, color) if value in ("no data", "unknown reset") else value
         for value in deltas
     ]
-    return f"tokens={count}  quota Δ5h={deltas[0]} Δweek={deltas[1]}"
+    deltas = ["−" + value if value.endswith("%") and value != "0.0%" else value for value in deltas]
+    parts = [f"Tokens: {count}"]
+    if show_duration:
+        elapsed = (
+            warning("no data", color)
+            if duration is None
+            else format_duration(timedelta(seconds=duration))
+        )
+        parts.append(f"Duration: {elapsed}")
+    parts.append(f"Quota: 5h {deltas[0]}, week {deltas[1]}")
+    return " · ".join(parts)
 
 
-def report_lines(report: SessionReport, color: bool, *, details: bool = False) -> list[str]:
+def report_lines(
+    report: SessionReport,
+    color: bool,
+    *,
+    details: bool = False,
+    include_session_duration: bool = True,
+) -> list[str]:
     if report.entrypoint == "run" and len(report.chunks) == 1:
         chunk = report.chunks[0]
         return [
-            "  " + metrics(chunk.tokens, report.budget_before, report.budget_after, color),
+            "  "
+            + metrics(
+                chunk.tokens,
+                report.budget_before,
+                report.budget_after,
+                color,
+                duration=chunk.elapsed_seconds,
+            ),
             *_context(chunk, "  ", color, details=details),
         ]
     lines = [
-        "  " + metrics(token_total(report.chunks), report.budget_before, report.budget_after, color)
+        "  "
+        + metrics(
+            token_total(report.chunks),
+            report.budget_before,
+            report.budget_after,
+            color,
+            duration=report.elapsed_seconds,
+            show_duration=include_session_duration,
+        )
     ]
     for chunk in report.chunks:
-        elapsed = "no data" if chunk.elapsed_seconds is None else f"{chunk.elapsed_seconds:.1f}s"
-        lines.append(f"    {chunk.started_at}  {chunk.project}  {chunk.status}  {elapsed}")
+        lines.append(f"    {chunk.started_at}  {chunk.project}  {chunk.status}")
         lines.append(
-            "      " + metrics(chunk.tokens, chunk.budget_before, chunk.budget_after, color)
+            "      "
+            + metrics(
+                chunk.tokens,
+                chunk.budget_before,
+                chunk.budget_after,
+                color,
+                duration=chunk.elapsed_seconds,
+            )
         )
         lines.extend(_context(chunk, "      ", color, details=details))
     return lines
