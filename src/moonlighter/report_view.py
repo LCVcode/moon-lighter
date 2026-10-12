@@ -6,6 +6,7 @@ import shutil
 import textwrap
 from datetime import timedelta
 
+from moonlighter.colors import outcome
 from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_usage import quota_delta
 from moonlighter.schedule import format_duration
@@ -115,7 +116,10 @@ def report_lines(
             children.extend(_context_nodes(chunk, color, details=details, width=columns - 8))
             nodes.append(
                 TreeNode(
-                    [f"{chunk.started_at}  {chunk.project}  {chunk.status}"],
+                    [
+                        f"{chunk.started_at}  {chunk.project}  "
+                        f"{outcome(chunk.status, enabled=color)}"
+                    ],
                     children,
                 )
             )

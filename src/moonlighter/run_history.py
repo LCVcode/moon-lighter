@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from moonlighter.colors import outcome
 from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_view import metrics, report_lines
 from moonlighter.schedule import format_duration
@@ -181,7 +182,8 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
         when = _format_timestamp(record.started_at)
         source = f"{record.entrypoint}/{record.trigger}"
         subject = ",".join(record.projects) if record.projects else record.skip_reason or "-"
-        lines.append(f"{when}  {source:<13} {record.status:<7} {subject}")
+        status = outcome(record.status, enabled=color) + " " * max(0, 7 - len(record.status))
+        lines.append(f"{when}  {source:<13} {status} {subject}")
         if record.report:
             lines.extend(report_lines(record.report, color))
         else:

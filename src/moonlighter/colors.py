@@ -13,6 +13,18 @@ MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 
 
+def outcome(status: str, *, enabled: bool) -> str:
+    """Color only the outcome word; preserve readable text without ANSI support."""
+    code = {
+        "success": GREEN,
+        "failed": RED,
+        "skipped": YELLOW,
+        "interrupted": YELLOW,
+        "running": CYAN,
+    }.get(status)
+    return style(status, *([code] if code else []), enabled=enabled)
+
+
 def style(text: str, *codes: str, enabled: bool) -> str:
     """Apply ANSI style codes when enabled."""
     if not enabled or not codes:

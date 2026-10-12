@@ -21,7 +21,9 @@ wrapped summary continuations.
 against that limit). Use `moon log --limit N` to show more. Keep using `--project`,
 `--status`, and `--all`. Additional
 status filters include `running` and `interrupted`. `--color auto|always|never`
-controls yellow missing/partial-data warnings. Plain output never relies on color
+controls status and yellow missing/partial-data warnings. Status words use green
+for success, red for failure, yellow for skipped/interrupted, and cyan for running;
+headers, tree connectors, and summaries are not status-colored. Plain output never relies on color
 alone. Project filtering selects sessions containing that project; session totals
 still represent the entire selected session, not only that project's child.
 
