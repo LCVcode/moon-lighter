@@ -89,7 +89,10 @@ def test_project_totals_do_not_include_other_children_or_parent_time(tmp_path: P
     assert "Tokens: 100" in output
     assert "Tokens: 300" not in output
     assert "beta" not in output
-    assert "Test rows" in output
+    assert "Test rows" not in output
+    detailed = render_activity_report(history, project="alpha", details=True)
+    assert "Test rows" in detailed and "beta" not in detailed
+    assert "Session time:" not in detailed
     assert "Session time:" not in output
     assert "whole sessions" in output
 

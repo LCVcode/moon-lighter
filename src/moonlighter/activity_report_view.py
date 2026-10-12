@@ -101,7 +101,7 @@ def render_activity_report(
                 )
             )
         lines.extend(["", *render_table(("Project", "Chunks", "Chunk time", "Tokens"), rows)])
-    if details or project is not None:
+    if details:
         lines.extend(["", f"Latest sessions: showing {min(limit, len(records))}/{len(records)}"])
         for record in records[:limit]:
             lines.extend(session_detail(record, project=project, color=color))

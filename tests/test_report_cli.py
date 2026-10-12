@@ -59,8 +59,21 @@ def test_global_report_and_project_contributions(reports, capsys) -> None:
     moonlighter.main(["report", "alpha", "--since", "2026-01-01T00:00:00+00:00"])
     output = capsys.readouterr().out
     assert "Tokens: 100" in output
-    assert "Built alpha" in output and "Next: Test alpha" in output
+    assert "Built alpha" not in output and "Next: Test alpha" not in output
+    assert "Latest sessions:" not in output and "Session: session-id" not in output
+    assert "--details" in output
     assert "beta" not in output
+
+
+def test_project_details_are_opt_in_and_keep_matching_chunks(reports, capsys) -> None:
+    for selector in (["--details"], ["--session", "session-id"]):
+        moonlighter.main(["report", "alpha", *selector, "--color", "never"])
+        output = capsys.readouterr().out
+        assert "Tokens: 100" in output
+        assert "Built alpha" in output and "Next: Test alpha" in output
+        assert "Session: session-id" in output
+        assert "beta" not in output
+        assert "Session time:" not in output
 
 
 def test_session_selection(reports, capsys) -> None:

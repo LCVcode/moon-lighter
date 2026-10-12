@@ -67,7 +67,7 @@ def test_capture_through_all_cli_consumers(tmp_path, monkeypatch, capsys) -> Non
     assert "success" in capsys.readouterr().out
     moonlighter.main(["report", "--color", "never"])
     assert "Tokens: 60" in capsys.readouterr().out
-    moonlighter.main(["report", "alpha", "--color", "never"])
+    moonlighter.main(["report", "alpha", "--details", "--color", "never"])
     output = capsys.readouterr().out
     assert "Tokens: 30" in output and "beta" not in output
     assert "Next: Review the result" in output

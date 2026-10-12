@@ -66,7 +66,8 @@ Quota samples are account observations and are never summed as project costs.
 
 Details default to at most 20 sessions (`--limit N`); aggregate totals cover all
 selected records. `--session` uses the exact ID shown in `--details`.
-Project reports also include matching work context. `--all` includes retained legacy
+Global and project reports are summary-only by default. `--details` adds matching
+work context; `--session RUN_ID` also enables details for that session. `--all` includes retained legacy
 routine skips, not scheduler skips that were never recorded. Reports and status
 are read-only: no work, live quota refresh, or lifecycle reconciliation.
 Logs may safely reconcile abandoned starts.

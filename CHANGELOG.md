@@ -25,6 +25,8 @@ This project follows Semantic Versioning.
 
 ### Changed
 
+- Project reports default to aggregate summaries like global reports. Use `--details`
+  for session/chunk context or `--session RUN_ID` for a specific detailed session.
 - History start persistence is mandatory before launching work. There is no bypass
   flag yet. Post-run usage failures do not invalidate successful project work.
 - New history retains budget blocks and operational failures but omits routine

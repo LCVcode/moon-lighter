@@ -360,7 +360,7 @@ Without a range, reports cover all retained history. Dates use local time unless
 
 Reports separate session wall time from summed chunk execution time, show outcomes/triggers/projects, and aggregate known tokens and coding metrics with partial/unknown labels. Project reports count matching chunks only and do not attribute whole-session time to a project. Quota observations remain separate account samples, never summed costs.
 
-`--details` shows session IDs, summaries, explicit next steps, and log references. Project reports also include work context. `--limit N` limits detail sessions (default 20), not aggregate totals. `--all` includes retained legacy routine skips. Status and reports do not refresh quota, launch work, or reconcile lifecycle state.
+`--details` shows session IDs, summaries, explicit next steps, and log references. Global and project reports are summary-only by default; use `--details` for work context, or `--session RUN_ID` for a single detailed session. `--limit N` limits detail sessions (default 20), not aggregate totals. `--all` includes retained legacy routine skips. Status and reports do not refresh quota, launch work, or reconcile lifecycle state.
 
 ### `moon run [project]`
 
