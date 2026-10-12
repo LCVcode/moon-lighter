@@ -31,6 +31,43 @@ headers, tree connectors, and summaries are not status-colored. Plain output nev
 alone. Project filtering selects sessions containing that project; session totals
 still represent the entire selected session, not only that project's child.
 
+Compact logs omit unobserved quota windows and zero coding fields. Unknown tokens
+and durations, partial totals, and reset warnings remain visible. This is display-only:
+`moon report --details` retains missing quota and zero coding fields. Missing coding
+values are not rendered as `None` or invented as zero.
+
+## Status and activity reports
+
+Status shares merged history with logs/reports, preserves current project disposition,
+labels older handoffs as historical, and shows useful work alongside recent failures.
+It does not infer a next step from arbitrary prose.
+
+`moon report [project]` supports `--today`, `--week`, `--since`, `--until`,
+`--session`, `--details`, `--limit`, `--all`, and `--color`.
+Without a range, all retained history is selected. Dates/naive timestamps are local;
+offset-aware ISO timestamps identify absolute instants. Starts are inclusive, ends
+exclusive, and calendar weeks run Monday through Sunday. Ranges select invocation
+starts; all children of selected sessions remain included even across a boundary.
+`--until` applies to `--since` or all-history ranges, not `--today`/`--week`.
+
+Reports distinguish parent wall time from summed child time, whole-session outcomes
+from matching project chunk outcomes, and complete totals from known partial subtotals.
+Project metrics come only from matching chunks; parent wall time is not attributed
+to a project. Legacy multi-project chunk attribution remains unknown.
+Quota samples are account observations and are never summed as project costs.
+
+Details default to at most 20 sessions (`--limit N`); aggregate totals cover all
+selected records. `--session` uses the exact ID shown in `--details`.
+Project reports also include matching work context. `--all` includes retained legacy
+routine skips, not scheduler skips that were never recorded. Reports and status
+are read-only: no work, live quota refresh, or lifecycle reconciliation.
+Logs may safely reconcile abandoned starts.
+
+Shared readers preserve readable records and warn when data is corrupt/inaccessible.
+Invalid UTF-8 index lines, malformed metadata, and duplicate chunk identities cannot
+silently produce complete totals. Valid sidecars override matching index entries;
+otherwise the latest appended index entry wins.
+
 ## Durable storage
 
 `~/.local/state/moon/reports/<run-id-hash>.json` is an atomic, fsynced structured
@@ -74,7 +111,10 @@ Pi assistant-message usage is collected only from JSONL data appended during the
 chunk. Previously resumed-session messages are excluded. Provider `totalTokens`
 is authoritative; input/output/cache categories are preserved when available and
 not added again to that total. There is no estimate from quota percentage to tokens.
-Unreadable/truncated data is unknown or partial. Session totals sum known chunk
+Forked files require trustworthy current-message timestamps; copied old messages
+and unattributable messages are excluded. Missing baseline files and unreadable or
+truncated data make observations unknown or partial. Append offsets remain
+authoritative for reused files even if the wall clock moves backward. Session totals sum known chunk
 counts and say `partial` if any chunk lacks a complete count. A session with no
 known counts shows `no data` instead of zero.
 
@@ -91,6 +131,6 @@ future explicit retention operations should delete pairs together. Manual remova
 of a referenced detailed log does not delete its report. Legacy entries without a
 report remain valid and show `no data` for uncaptured usage.
 
-Deeper `moon report` analysis, report-based status improvements, retention controls,
-and an explicit history-gate bypass flag are separate future increments. Any history
-bypass must remain independent of budget/schedule bypasses.
+Retention controls and an explicit history-gate bypass flag remain future work;
+any bypass must remain independent of budget/schedule bypasses. Capture, log,
+status, and report consumers all ship together in 1.2.0.

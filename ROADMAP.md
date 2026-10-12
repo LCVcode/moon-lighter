@@ -2,9 +2,9 @@
 
 ## Current State
 
-Working-tree package version: **1.2.0**, partially implemented on `feature/durable-history`.
-This is the full session-history release target, not yet release-ready.
-Last committed baseline: **1.1.0**, pushed in `bfcb1de`.
+Package version: **1.2.0**, implemented and validated on `feature/durable-history`.
+The complete session-history capability is ready for final user acceptance; it has
+not been published. Previous master baseline: **1.1.0**, pushed in `bfcb1de`.
 Latest existing release tag: `v1.0.0`; neither update has been tagged or published.
 
 The 1.0.0 baseline provides project lifecycle/priority management, manual and
@@ -17,10 +17,10 @@ plans, and release numbering resolved from delivered scope. New configs default
 to `gpt-6.1-sol`; existing configs are not overwritten.
 
 Completed issues: #2 (systemd management) and #13 (initial CI).
-Durable history capture and the basic hierarchical log view are implemented in
-this branch's working tree, including timing, usage, lifecycle, summaries, and
-coding metrics. Deeper reports, richer status, new chunk controls, work modes, and
-alternate backends below remain unimplemented.
+Durable capture, tree-form logs, shared queries, project/global status, and activity
+reports are implemented together. User-reviewed real manual-run history informed
+log refinements; automated validation uses deterministic runners, not paid agent work.
+New chunk controls, work modes, health, onboarding, and alternate backends remain planned.
 
 ## Desired State
 
@@ -56,14 +56,14 @@ without weakening host-owned gates, workspace preservation, or no-push safety.
 
 | Cycle ID | Capability / outcome | Dependencies | Status |
 |---|---|---|---|
-| history | Capture durable work/usage history and integrate it into logs, status, and reports | Existing runner/history | Next; detailed below |
+| history | Capture durable work/usage history and integrate it into logs, status, and reports | Existing runner/history | Implemented; final acceptance pending |
 | control | Budget-aware chunk guidance and approved pacing options | History observations | Planned; policy decisions needed |
 | modes | Strict/MVP/creative behavior integrated with roadmap planning | Existing planning skills; control precedes this cycle | Planned |
 | health | Operational diagnostics, actionable output, and relevant status integration | History and gate observations | Planned |
 | onboarding | Interactive project creation and complete brief/editor flow | Existing lifecycle commands | Planned |
 | backends | Runner abstraction and one additional coding-agent backend | Existing safety/history contracts | Planned; backend decision needed |
 
-## Next Cycle: Durable Work and Usage History
+## Current Cycle: Durable Work and Usage History
 
 Release target: **1.2.0 — Session history**. All increments in this section share
 that release. Each is independently testable and may take multiple chunks. Build
@@ -73,7 +73,7 @@ to defer correctness.
 ### history.capture - Durable capture and basic log view
 
 - Stage: foundation
-- Status: implemented in working tree; pending commit/release
+- Status: implemented and committed; final acceptance/publication pending
 - Release version: 1.2.0, shared with all history integrations and hardening
 - Evidence: deterministic lifecycle, persistence, usage, hierarchy, compatibility,
   and CLI smoke checks; no authenticated agent run was launched for validation
@@ -115,19 +115,20 @@ to defer correctness.
 ### history.log - Existing log integration (included in history.capture)
 
 - Stage: integration
-- Status: implemented within history.capture; pending commit/release
+- Status: implemented, refined, and committed; final acceptance/publication pending
 - Release version: 1.2.0, shared with the entire history cycle
 - Issues: #11, history consumers from #10
 - Scope: retain the existing overview/filters and add compact start time, duration,
   token totals, and 5-hour/weekly deltas. Show work-session totals with indented
   chunks; flatten moon run to one unindented entry. Use recorded summaries/metrics.
-- Acceptance: old/missing values show yellow `no data` (plain when color disabled),
-  incomplete token totals say partial, and existing filters still work.
+- Acceptance: unknown tokens/durations show `no data` (plain when color disabled),
+  incomplete totals say partial, and filters still work. Nonessential missing quota
+  and zero coding fields are omitted in compact logs but retained in report details.
 
-### Next: history.project-status - Shared history queries and project status
+### history.project-status - Shared history queries and project status
 
 - Stage: integration
-- Status: planned
+- Status: implemented and validated; final acceptance pending
 - Release version: 1.2.0 (same session-history release)
 - Depends on: history.capture, history.log
 - Issue: [#12](https://github.com/LCVcode/moon-lighter/issues/12)
@@ -155,7 +156,7 @@ to defer correctness.
 ### history.global-status - Global status integration
 
 - Stage: integration
-- Status: planned
+- Status: implemented and validated; final acceptance pending
 - Release version: 1.2.0 (same session-history release)
 - Depends on: shared queries from history.project-status
 - Implementation steps:
@@ -173,7 +174,7 @@ to defer correctness.
 ### history.reports - Deep session-history reporting
 
 - Stage: integration
-- Status: planned
+- Status: implemented and validated; final acceptance pending
 - Release version: 1.2.0 (same session-history release)
 - Depends on: history.capture and shared history queries
 - Issues: [#8](https://github.com/LCVcode/moon-lighter/issues/8), report consumers from #10
@@ -206,7 +207,7 @@ to defer correctness.
 ### history.hardening - Complete and validate the 1.2.0 capability
 
 - Stage: stabilization
-- Status: planned
+- Status: implemented and validated; final acceptance pending
 - Release version: 1.2.0 (same session-history release)
 - Depends on: all history consumers above
 - Implementation steps:
@@ -303,9 +304,10 @@ every backend at once; dashboards; new config-editing commands not yet requested
 
 ## Execution and Validation
 
-Implement shared history queries and project status next, then global status,
-reports, and release-wide hardening. Treat the existing capture/log work as partial
-1.2.0, not a completed minor release.
+All history increments are implemented. Final evidence: 227 automated tests, Ruff
+lint/format, ty, package build, and isolated installed-CLI capture/log/status/report
+smoke checks. Reinstallation is complete; final acceptance remains with the user.
+No authenticated agent chunk was launched by the release validation process.
 Record progress, acceptance evidence, and resolved versions here. Preserve completed
 entries; reassess and detail the following cycle only when it becomes next.
 

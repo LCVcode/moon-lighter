@@ -12,7 +12,7 @@ Moonlighter is intentionally conservative:
 - It does not push commits.
 - It keeps human guidance in `.moon/brief.md` and machine state in `.moon/state.json`.
 
-Current status: v1.2 development. Manual runs, scheduled systemd work, project lifecycle, budget and schedule gates, durable work reports, hierarchical run history, and the Dockerized Pi runner are functional.
+Current status: v1.2.0 implemented and awaiting final acceptance. Durable session history now integrates capture, tree-form logs, project/global status, and activity reports. Manual/scheduled work and host-owned budget/schedule gates remain unchanged.
 
 ## Requirements
 
@@ -96,7 +96,7 @@ moon status
 moon status hydro-helper
 ```
 
-Global status shows schedule state, systemd service/timer state, runner state, active projects grouped by priority, project categories, and last-known budget. Project status shows disposition, pause state, priority, session metadata, requested feedback, and recent summaries.
+Global status shows schedule, service/timer and runner state, priority groups, last-known budget, recent successful work, and failures. Project status includes meaningful recorded summaries and explicit next steps. Current project disposition remains authoritative; older handoffs are labeled historical. Status describes where things stand now; `moon report` describes what happened over time.
 
 ### 3. Prioritize work
 
@@ -325,7 +325,7 @@ Priority must be one of: `urgent`, `high`, `normal`, `low`, `backlog`.
 
 ### `moon log`
 
-Show recent Moonlighter run history from `~/.local/state/moon/runs.jsonl`.
+Show the latest five sessions from durable reports and compatible `runs.jsonl` history under `~/.local/state/moon/`. Child chunks do not count toward the limit; use `--limit N` for more.
 
 Examples:
 
@@ -336,11 +336,31 @@ moon log --project hydro-helper
 moon log --status skipped
 ```
 
-History records session and chunk starts/outcomes, elapsed time, trigger, projects, summaries, disposition, available coding metrics, agent token counts, and before/after quota observations. `moon work` shows session totals with indented chunks; `moon run` shows a single item. Unknown values appear as `no data`, and incomplete token subtotals are labeled `partial`. Use `--color never` for plain text or `--color always` for yellow warnings.
+History records session/chunk starts and outcomes, timing, summaries, context, coding metrics, token counts, and quota observations. Tree connectors show `moon work` chunks beneath their session; `moon run` has one header. Summaries, errors, and stop reasons wrap within their branches. Short durations use seconds.
 
-New history retains budget blocks and operational failures, but not routine outside-window, paused, or no-eligible-project skips. `--all` can still show routine skips already present in old history. `--status running` and `--status interrupted` expose unfinished work. Old records remain readable with missing metrics marked `no data`.
+Status words are green for success, red for failure, yellow for skipped/interrupted, and cyan for running. `--color never` disables ANSI; `--color always` forces it. Unknown tokens/durations remain `no data`, and incomplete token totals remain `partial`. Compact logs omit unobserved quota windows and zero coding fields; captured values remain available in report details.
 
-Quota deltas are account-level percentage-point observations, not precise per-project token costs. Resets and missing observations are labeled rather than estimated. Deeper `moon report` analysis is planned later. See [work report semantics](docs/history.md).
+Budget blocks and operational failures are retained; routine outside-window, paused, and no-eligible-project skips are not. `--all` includes routine skips already retained in old history. `running` and `interrupted` are supported status filters. Damaged history produces warnings without hiding readable records.
+
+Quota uses `%` for percentage-point changes in shared-account remaining quota (e.g. `5h −4.0%`), not relative percent changes or exact project token costs. Reset/changed observations are labeled; parent and child quota must not be summed. See [history and reporting semantics](docs/history.md).
+
+### `moon report [project]`
+
+Review activity over time or inspect a specific invocation:
+
+```bash
+moon report --today
+moon report --week --details
+moon report hydro-helper --since 2026-10-01 --until 2026-11-01
+moon report --details
+moon report --session RUN_ID
+```
+
+Without a range, reports cover all retained history. Dates use local time unless an ISO timestamp includes an offset; starts are inclusive and ends exclusive. Weeks run Monday–Sunday. Ranges select invocation starts and retain all children of selected sessions.
+
+Reports separate session wall time from summed chunk execution time, show outcomes/triggers/projects, and aggregate known tokens and coding metrics with partial/unknown labels. Project reports count matching chunks only and do not attribute whole-session time to a project. Quota observations remain separate account samples, never summed costs.
+
+`--details` shows session IDs, summaries, explicit next steps, and log references. Project reports also include work context. `--limit N` limits detail sessions (default 20), not aggregate totals. `--all` includes retained legacy routine skips. Status and reports do not refresh quota, launch work, or reconcile lifecycle state.
 
 ### `moon run [project]`
 

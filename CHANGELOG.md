@@ -14,8 +14,14 @@ This project follows Semantic Versioning.
 - Session/chunk quota observations and chunk-local Pi token usage, excluding prior
   resumed-session messages. Unknown and partial token totals remain explicit.
 - Safe interrupted-session reconciliation using owner leases and Docker liveness.
-- A compact hierarchical `moon log` view with usage data, colored missing-data
-  warnings, and `running`/`interrupted` filters. Manual runs display as one item.
+- Tree-form `moon log` with a five-session default, readable metrics, status-only
+  outcome colors, wrapped summaries/errors/stop reasons, and second-scale durations.
+  Manual runs display as one item; work sessions retain nested chunks.
+- Shared history queries integrated into project/global status, with meaningful
+  summaries, explicit next steps, historical handoff labels, and recent outcomes.
+- `moon report [project]` for local calendar/date ranges, aggregate activity,
+  matching project contributions, partial/unknown totals, and session/chunk detail.
+  Status and reports are read-only and never refresh quota or launch work.
 
 ### Changed
 
@@ -25,10 +31,23 @@ This project follows Semantic Versioning.
   outside-window, paused, and no-eligible-project skips. Old records remain readable.
 - Reports retain metrics when referenced detailed logs disappear; no automatic
   pruning or independent report retention policy is introduced.
+- Compact logs omit zero coding fields and unobserved quota windows, while unknown
+  tokens/durations and partial totals remain explicit. Report details retain captured
+  zero fields and missing-data explanations. `%` denotes account percentage-point
+  changes; decreases have a minus sign and the compact account suffix is omitted.
 
 ### Fixed
 
 - `moon --version` reads installed package metadata instead of always showing 1.0.0.
+- Recognize Docker's lowercase/mixed-case missing-container responses without
+  weakening fail-closed handling of unknown/running workers.
+- Tolerant history consumers retain readable data around malformed/invalid-UTF-8
+  records, report warnings, deduplicate records, and select the latest legacy entry.
+- Reject invalid token metadata and duplicate chunk identities; prevent copied,
+  timestamp-less fork messages from being charged to a new invocation.
+- Handle deleted/unavailable session storage as partial/unknown usage, not failed
+  work; normalize quota timestamps/offsets and preserve byte-offset attribution
+  across wall-clock changes.
 
 ## 1.1.0 - Unreleased
 
