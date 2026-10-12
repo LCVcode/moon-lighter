@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -9,6 +10,13 @@ from moonlighter import main
 from moonlighter.config import Config, ConfigCheckResult, RunnerConfig
 from moonlighter.run_history import RunRecord, append_run_record
 from moonlighter.service import ServiceStatus
+
+
+def test_version_matches_installed_package(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert capsys.readouterr().out.strip() == f"moon {version('moonlighter')}"
 
 
 def test_main_without_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:

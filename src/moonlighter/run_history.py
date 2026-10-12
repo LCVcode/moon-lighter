@@ -8,12 +8,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from moonlighter.report_view import report_lines, warning
 from moonlighter.schedule import format_duration
+from moonlighter.work_reports import SessionReport, read_reports
 
 RUN_HISTORY_SCHEMA_VERSION = 1
 RUN_HISTORY_FILE_NAME = "runs.jsonl"
 
-RunStatus = Literal["skipped", "success", "failed"]
+RunStatus = Literal["skipped", "success", "failed", "running", "interrupted"]
 
 
 class RunHistoryError(ValueError):
@@ -40,6 +42,7 @@ class RunRecord:
     succeeded_chunks: int
     failed_chunks: int
     schema_version: int = RUN_HISTORY_SCHEMA_VERSION
+    report: SessionReport | None = None
 
 
 def run_history_path(state_dir: Path) -> Path:
@@ -63,12 +66,9 @@ def append_run_record(state_dir: Path, record: RunRecord) -> None:
 def read_run_records(state_dir: Path) -> tuple[RunRecord, ...]:
     """Read run records from newest to oldest."""
     path = run_history_path(state_dir)
-    if not path.exists():
-        return ()
-
     records: list[RunRecord] = []
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
+        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     except OSError as exc:
         raise RunHistoryError(f"failed to read run history {path}: {exc}") from exc
 
@@ -82,7 +82,33 @@ def read_run_records(state_dir: Path) -> tuple[RunRecord, ...]:
         if not isinstance(data, dict):
             raise RunHistoryError(f"run history line {line_number} must be a JSON object")
         records.append(parse_run_record(data, line_number=line_number))
-    return tuple(reversed(records))
+    by_id = {record.run_id: record for record in reversed(records)}
+    for report in read_reports(state_dir):
+        chunks = report.chunks
+        status: RunStatus = (
+            report.status
+            if report.status in ("success", "failed", "skipped", "running", "interrupted")
+            else "interrupted"
+        )
+        by_id[report.run_id] = RunRecord(
+            run_id=report.run_id,
+            started_at=report.started_at,
+            ended_at=report.ended_at or report.started_at,
+            elapsed_seconds=report.elapsed_seconds or 0,
+            entrypoint=report.entrypoint,
+            trigger=report.trigger,
+            requested_project=report.requested_project,
+            projects=tuple(chunk.project for chunk in chunks),
+            status=status,
+            skip_reason=report.stop_reason if status == "skipped" else None,
+            error=report.error,
+            disposition=chunks[-1].disposition if chunks else None,
+            ran_chunks=len(chunks),
+            succeeded_chunks=sum(c.status == "success" for c in chunks),
+            failed_chunks=sum(c.status == "failed" for c in chunks),
+            report=report,
+        )
+    return tuple(sorted(by_id.values(), key=lambda record: record.started_at, reverse=True))
 
 
 def filter_run_records(
@@ -115,14 +141,15 @@ def is_no_work_skip(record: RunRecord) -> bool:
     as manual. Treat plain `moon work` gate skips with no chunks as hidden by default.
     """
     return (
-        record.entrypoint == "work"
+        record.report is None
+        and record.entrypoint == "work"
         and record.status == "skipped"
         and not record.projects
         and record.ran_chunks == 0
     )
 
 
-def render_run_log(records: tuple[RunRecord, ...]) -> str:
+def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> str:
     """Render run records for humans."""
     lines = ["Recent Moon runs", ""]
     if not records:
@@ -134,7 +161,17 @@ def render_run_log(records: tuple[RunRecord, ...]) -> str:
         elapsed = format_duration_seconds(record.elapsed_seconds)
         source = f"{record.entrypoint}/{record.trigger}"
         subject = ",".join(record.projects) if record.projects else record.skip_reason or "-"
+        if record.report is not None and record.report.elapsed_seconds is None:
+            elapsed = warning("no data", color)
         lines.append(f"{when}  {source:<13} {record.status:<7} {elapsed:<5} {subject}")
+        if record.report:
+            lines.extend(report_lines(record.report, color))
+            if record.report.error:
+                lines.append("  error: " + " ".join(record.report.error.split()))
+            if record.report.stop_reason and record.status != "skipped":
+                lines.append("  stopped: " + record.report.stop_reason)
+        else:
+            lines.append("  usage: " + warning("no data", color))
     return "\n".join(lines) + "\n"
 
 
@@ -174,7 +211,7 @@ def parse_run_record(data: dict[str, object], *, line_number: int | None = None)
             f"{label} schema_version must be {RUN_HISTORY_SCHEMA_VERSION}, got {schema_version}"
         )
     status = _required_string(data, "status", label)
-    if status not in {"skipped", "success", "failed"}:
+    if status not in {"skipped", "success", "failed", "running", "interrupted"}:
         raise RunHistoryError(f"{label} status must be one of: skipped, success, failed")
 
     return RunRecord(

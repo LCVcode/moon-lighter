@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, cast
 
@@ -61,7 +62,10 @@ from moonlighter.service import (
 from moonlighter.status import render_global_status, render_project_status
 from moonlighter.tick import TickError, run_tick
 
-_VERSION = "1.0.0"
+try:
+    _VERSION = version("moonlighter")
+except PackageNotFoundError:
+    _VERSION = "unknown (package not installed)"
 
 
 class CliError(ValueError):
@@ -212,7 +216,15 @@ def build_parser() -> argparse.ArgumentParser:
     log_parser.add_argument("--limit", type=int, default=20, help="Maximum records to show.")
     log_project_arg = log_parser.add_argument("--project", help="Only show runs for a project.")
     add_project_completer(log_project_arg)
-    log_parser.add_argument("--status", choices=("skipped", "success", "failed"))
+    log_parser.add_argument(
+        "--status", choices=("skipped", "success", "failed", "running", "interrupted")
+    )
+    log_parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Colorize missing or partial history data.",
+    )
     log_parser.add_argument(
         "--all",
         action="store_true",
@@ -680,7 +692,13 @@ def render_priority_list(config: Config) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def handle_log(limit: int, project: str | None, status: str | None, include_all: bool) -> int:
+def handle_log(
+    limit: int,
+    project: str | None,
+    status: str | None,
+    include_all: bool,
+    color_choice: str = "auto",
+) -> int:
     """Handle `moon log`."""
     if limit <= 0:
         raise CliError("--limit must be greater than zero")
@@ -692,7 +710,7 @@ def handle_log(limit: int, project: str | None, status: str | None, include_all:
         status=status,
         include_no_work_skips=include_all,
     )
-    print(render_run_log(filtered), end="")
+    print(render_run_log(filtered, color=should_color(color_choice)), end="")
     return 0
 
 
@@ -841,7 +859,7 @@ def main(argv: list[str] | None = None) -> None:
         elif args.command == "status":
             exit_code = handle_status(args.project, args.color)
         elif args.command == "log":
-            exit_code = handle_log(args.limit, args.project, args.status, args.all)
+            exit_code = handle_log(args.limit, args.project, args.status, args.all, args.color)
         elif args.command == "run":
             exit_code = handle_run(args.project, args.chunk_minutes, args.ignore_budget)
         elif args.command == "work":
