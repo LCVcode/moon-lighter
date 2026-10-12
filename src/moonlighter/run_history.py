@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from moonlighter.colors import outcome
 from moonlighter.history_duration import format_elapsed
 from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_view import metrics, report_lines
+from moonlighter.text_layout import ellipsize, visible_width
 from moonlighter.work_reports import SessionReport, read_reports
 
 RUN_HISTORY_SCHEMA_VERSION = 1
@@ -189,7 +191,15 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
         source = f"{record.entrypoint}/{record.trigger}"
         subject = ",".join(record.projects) if record.projects else record.skip_reason or "-"
         status = outcome(record.status, enabled=color) + " " * max(0, 7 - len(record.status))
-        lines.append(f"{when}  {source:<13} {status} {subject}")
+        header = f"{when}  {source:<13} {status} "
+        if record.status == "failed":
+            columns = shutil.get_terminal_size((100, 24)).columns
+            subject = ellipsize(subject, max(8, columns - visible_width(header) - 24))
+            header += subject + " — "
+            reason = failure_reason(record)
+            lines.append(header + ellipsize(reason, max(1, columns - visible_width(header))))
+            continue
+        lines.append(header + subject)
         if record.report:
             lines.extend(report_lines(record.report, color))
         else:
@@ -212,6 +222,21 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
                 )
             )
     return "\n".join(lines) + "\n"
+
+
+def failure_reason(record: RunRecord) -> str:
+    """Select a cause without discarding full failed-session data from reports."""
+    if record.report:
+        if record.report.error:
+            return record.report.error
+        failures = [chunk for chunk in record.report.chunks if chunk.status == "failed"]
+        for chunk in failures:
+            if chunk.error or chunk.stop_reason:
+                reason = chunk.error or chunk.stop_reason or ""
+                return f"{chunk.project}: {reason}" if len(record.report.chunks) > 1 else reason
+        if record.report.stop_reason:
+            return record.report.stop_reason
+    return record.error or record.skip_reason or "no failure reason recorded"
 
 
 def format_duration_seconds(seconds: float) -> str:

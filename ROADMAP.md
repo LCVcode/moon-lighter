@@ -304,7 +304,7 @@ every backend at once; dashboards; new config-editing commands not yet requested
 
 ## Execution and Validation
 
-All history increments are implemented. Final evidence: 227 automated tests, Ruff
+All history increments are implemented. Final evidence: 231 automated tests, Ruff
 lint/format, ty, package build, and isolated installed-CLI capture/log/status/report
 smoke checks. Reinstallation is complete; final acceptance remains with the user.
 No authenticated agent chunk was launched by the release validation process.

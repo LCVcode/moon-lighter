@@ -38,6 +38,9 @@ This project follows Semantic Versioning.
 
 ### Fixed
 
+- Align report project-table columns using visible widths, including colored,
+  partial/unknown values and wide project names. Failed log sessions now use compact
+  single-line causes; full failed-session context remains in report details.
 - `moon --version` reads installed package metadata instead of always showing 1.0.0.
 - Recognize Docker's lowercase/mixed-case missing-container responses without
   weakening fail-closed handling of unknown/running workers.

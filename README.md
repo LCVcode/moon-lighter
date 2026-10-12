@@ -336,7 +336,7 @@ moon log --project hydro-helper
 moon log --status skipped
 ```
 
-History records session/chunk starts and outcomes, timing, summaries, context, coding metrics, token counts, and quota observations. Tree connectors show `moon work` chunks beneath their session; `moon run` has one header. Summaries, errors, and stop reasons wrap within their branches. Short durations use seconds.
+History records session/chunk starts and outcomes, timing, summaries, context, coding metrics, token counts, and quota observations. Tree connectors show `moon work` chunks beneath their session; `moon run` has one header. Successful-session summaries, errors, and stop reasons wrap within their branches. Failed sessions collapse to one line with a cause (truncated to terminal width); full context remains in `moon report --details`. Short durations use seconds.
 
 Status words are green for success, red for failure, yellow for skipped/interrupted, and cyan for running. `--color never` disables ANSI; `--color always` forces it. Unknown tokens/durations remain `no data`, and incomplete token totals remain `partial`. Compact logs omit unobserved quota windows and zero coding fields; captured values remain available in report details.
 

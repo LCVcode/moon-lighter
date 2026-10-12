@@ -31,6 +31,14 @@ headers, tree connectors, and summaries are not status-colored. Plain output nev
 alone. Project filtering selects sessions containing that project; session totals
 still represent the entire selected session, not only that project's child.
 
+Failed sessions collapse to one line in `moon log`: timestamp, trigger, status,
+project(s), and failure cause. Long causes are truncated with `…` to terminal width;
+full errors, summaries, metrics, and successful sibling chunks remain in
+`moon report --details` or `moon report --session RUN_ID`.
+
+Report project tables size all columns from visible text, including partial and
+unknown values, excluding ANSI escape codes from padding calculations.
+
 Compact logs omit unobserved quota windows and zero coding fields. Unknown tokens
 and durations, partial totals, and reset warnings remain visible. This is display-only:
 `moon report --details` retains missing quota and zero coding fields. Missing coding

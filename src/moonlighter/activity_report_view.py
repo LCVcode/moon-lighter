@@ -9,6 +9,7 @@ from moonlighter.history_queries import History, select_records
 from moonlighter.report_usage import quota_delta
 from moonlighter.report_view import report_lines, warning
 from moonlighter.run_history import RunRecord, format_duration_seconds
+from moonlighter.text_layout import render_table
 
 
 def measure(value: Total, *, duration: bool = False, color: bool = False) -> str:
@@ -86,18 +87,20 @@ def render_activity_report(
             " (details show reset/missing data)"
         )
     if project is None and names:
-        width = max(16, max(map(len, names)))
-        lines.extend(["", f"{'Project':<{width}}  Chunks  Chunk time  Tokens"])
+        rows = []
         for name in names:
             selected = select_records(records, project=name, include_routine_skips=True)
             contribution = aggregate(selected, name)
             count = str(contribution.chunks) + (" partial" if contribution.chunks_partial else "")
-            lines.append(
-                f"{name:<{width}}  {count:>6}  "
-                + measure(contribution.chunk_time, duration=True, color=color)
-                + "  "
-                + measure(contribution.tokens, color=color)
+            rows.append(
+                (
+                    name,
+                    count,
+                    measure(contribution.chunk_time, duration=True, color=color),
+                    measure(contribution.tokens, color=color),
+                )
             )
+        lines.extend(["", *render_table(("Project", "Chunks", "Chunk time", "Tokens"), rows)])
     if details or project is not None:
         lines.extend(["", f"Latest sessions: showing {min(limit, len(records))}/{len(records)}"])
         for record in records[:limit]:
