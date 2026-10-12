@@ -6,7 +6,11 @@ One invocation of `moon work` or `moon run` is one session. A work session may
 contain multiple project chunks; a blocked session has none. Manual runs have one
 logical chunk, displayed without a redundant child row. Tree connectors attach
 metrics, summaries, and chunk rows to their session; vertical guides persist through
-wrapped summary continuations.
+wrapped summary continuations. Errors and stop reasons also wrap to terminal width,
+with continuation text aligned after their labels and tree guides retained.
+Elapsed times below a minute use seconds (`3s`), with fractional seconds for
+sub-second work (`0.03s`) rather than rounding down to `0m`; longer durations
+keep the existing minute/hour/day style.
 
 ```text
 2026-01-01 02:00  work/systemd success  alpha,beta

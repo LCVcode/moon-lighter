@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import shutil
 import textwrap
-from datetime import timedelta
 
 from moonlighter.colors import outcome
+from moonlighter.history_duration import format_elapsed
 from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_usage import quota_delta
-from moonlighter.schedule import format_duration
 from moonlighter.work_reports import ChunkReport, SessionReport, TokenUsage, UsageObservation
 
 
@@ -50,11 +49,7 @@ def metrics(
     deltas = ["−" + value if value.endswith("%") and value != "0.0%" else value for value in deltas]
     parts = [f"Tokens: {count}"]
     if show_duration:
-        elapsed = (
-            warning("no data", color)
-            if duration is None
-            else format_duration(timedelta(seconds=duration))
-        )
+        elapsed = warning("no data", color) if duration is None else format_elapsed(duration)
         parts.append(f"Duration: {elapsed}")
     parts.append(f"Quota: 5h {deltas[0]}, week {deltas[1]}")
     return " · ".join(parts)
@@ -124,9 +119,9 @@ def report_lines(
                 )
             )
     if report.error:
-        nodes.append(TreeNode(["error: " + " ".join(report.error.split())]))
+        nodes.append(TreeNode(detail_lines("error", report.error, width=columns - 5)))
     if report.stop_reason:
-        nodes.append(TreeNode(["stopped: " + " ".join(report.stop_reason.split())]))
+        nodes.append(TreeNode(detail_lines("stopped", report.stop_reason, width=columns - 5)))
     return render_tree(nodes)
 
 
@@ -157,6 +152,23 @@ def summary_lines(summary: str, prefix: str, *, width: int | None = None) -> lis
     )
 
 
+def detail_lines(
+    label: str,
+    value: str,
+    prefix: str = "",
+    *,
+    width: int | None = None,
+) -> list[str]:
+    columns = width if width is not None else shutil.get_terminal_size((100, 24)).columns
+    heading = label + ": "
+    return textwrap.wrap(
+        " ".join(value.split()),
+        width=max(columns, len(prefix) + len(heading) + 2),
+        initial_indent=prefix + heading,
+        subsequent_indent=prefix + " " * len(heading),
+    )
+
+
 def _context(
     chunk: ChunkReport,
     prefix: str,
@@ -169,7 +181,7 @@ def _context(
     if chunk.summary:
         lines.extend(summary_lines(chunk.summary, prefix, width=width))
     if chunk.error:
-        lines.append(prefix + "error: " + " ".join(chunk.error.split()))
+        lines.extend(detail_lines("error", chunk.error, prefix, width=width))
     if chunk.commits is not None:
         lines.append(
             prefix + f"commits={chunk.commits} diff=+{chunk.inserted_lines} -{chunk.deleted_lines}"
@@ -182,7 +194,7 @@ def _context(
             ("Stopped", chunk.stop_reason),
         ):
             if value:
-                lines.append(prefix + label + ": " + " ".join(value.split()))
+                lines.extend(detail_lines(label, value, prefix, width=width))
         lines.extend(prefix + "Log: " + path for path in chunk.log_paths)
     # Missing logs do not invalidate retained metrics/context.
     from pathlib import Path

@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Literal
 
 from moonlighter.colors import outcome
+from moonlighter.history_duration import format_elapsed
 from moonlighter.history_tree import TreeNode, render_tree
 from moonlighter.report_view import metrics, report_lines
-from moonlighter.schedule import format_duration
 from moonlighter.work_reports import SessionReport, read_reports
 
 RUN_HISTORY_SCHEMA_VERSION = 1
@@ -197,7 +197,7 @@ def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> st
 
 def format_duration_seconds(seconds: float) -> str:
     """Format elapsed seconds using Moonlighter's terse duration style."""
-    return format_duration(datetime.fromtimestamp(max(0, seconds)) - datetime.fromtimestamp(0))
+    return format_elapsed(seconds)
 
 
 def run_record_to_json(record: RunRecord) -> dict[str, object]:
