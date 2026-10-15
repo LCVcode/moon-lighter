@@ -4,6 +4,21 @@ All notable changes to Moonlighter will be documented in this file.
 
 This project follows Semantic Versioning.
 
+## Unreleased
+
+### Changed
+
+- Apply a shared semantic palette across human CLI output: cyan headings/labels,
+  green successful actions/outcomes, yellow warnings/pauses, red errors/failures,
+  dim hints, and consistent priority colors. Preserve plain paths and prose.
+- Accept `--color auto|always|never` on every command, including nested commands
+  and help/errors. Auto respects each output stream's TTY, `NO_COLOR`, and
+  `TERM=dumb`; explicit flags take precedence.
+- Keep generated completion scripts, startup snippets, systemd units, version
+  strings, and on-disk artifacts uncolored, even when color is forced.
+- Color report headings/labels/outcomes and status history without disturbing
+  report column alignment or adding output to previously silent executions.
+
 ## 1.2.0 - 2026-10-12
 
 ### Added

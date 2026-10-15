@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
+from moonlighter.cli_output import paint
 from moonlighter.colors import outcome
 from moonlighter.history_duration import format_elapsed
 from moonlighter.history_tree import TreeNode, render_tree
@@ -181,9 +182,9 @@ def is_no_work_skip(record: RunRecord) -> bool:
 
 def render_run_log(records: tuple[RunRecord, ...], *, color: bool = False) -> str:
     """Render run records for humans."""
-    lines = ["Recent Moon runs", ""]
+    lines = [paint("Recent Moon runs", "heading", enabled=color), ""]
     if not records:
-        lines.append("none")
+        lines.append(paint("none", "hint", enabled=color))
         return "\n".join(lines) + "\n"
 
     for record in records:

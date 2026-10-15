@@ -4,11 +4,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from moonlighter.colors import outcome
 from moonlighter.history_queries import load_history, project_work, timestamp
 from moonlighter.projects import ProjectState
 
 
-def project_history_lines(state_dir: Path, project: str, state: ProjectState) -> list[str]:
+def project_history_lines(
+    state_dir: Path,
+    project: str,
+    state: ProjectState,
+    *,
+    color: bool = False,
+) -> list[str]:
     history = load_history(state_dir)
     work = project_work(history.records, project)
     lines: list[str] = []
@@ -16,7 +23,9 @@ def project_history_lines(state_dir: Path, project: str, state: ProjectState) ->
         lines.append("Summary: " + compact(state.disposition_summary))
     if work:
         latest = work[0]
-        lines.append(f"Latest outcome: {latest.status} ({latest.started_at})")
+        lines.append(
+            f"Latest outcome: {outcome(latest.status, enabled=color)} ({latest.started_at})"
+        )
         if latest.reason:
             lines.append("  Reason: " + compact(latest.reason))
         success = next((item for item in work if item.status == "success"), None)
@@ -66,7 +75,7 @@ def project_history_lines(state_dir: Path, project: str, state: ProjectState) ->
     return lines
 
 
-def global_history_lines(state_dir: Path) -> list[str]:
+def global_history_lines(state_dir: Path, *, color: bool = False) -> list[str]:
     history = load_history(state_dir)
     lines = ["Recent work (historical, not budget permission):"]
     success = next((record for record in history.records if record.succeeded_chunks), None)
@@ -86,7 +95,9 @@ def global_history_lines(state_dir: Path) -> list[str]:
             reason = record.report.stop_reason
             if not reason:
                 reason = next((chunk.error for chunk in record.report.chunks if chunk.error), None)
-        label = "running/unfinished" if record.status == "running" else record.status
+        label = outcome(record.status, enabled=color)
+        if record.status == "running":
+            label += "/unfinished"
         lines.append(
             f"  {record.started_at} {subject}: {label}"
             + (" — " + compact(reason) if reason else "")

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import replace
 
 from moonlighter.activity_reports import Total, aggregate, matching_chunks
+from moonlighter.cli_output import labelled, paint
+from moonlighter.colors import outcome
 from moonlighter.history_queries import History, select_records
 from moonlighter.report_usage import quota_delta
 from moonlighter.report_view import report_lines, warning
@@ -30,14 +32,14 @@ def render_activity_report(
 ) -> str:
     records = history.records
     title = f"{project} — {label}" if project else label
-    lines = [title, ""]
+    lines = [paint(title, "heading", enabled=color), ""]
     if history.warnings:
         lines.append(warning("History incomplete: totals cover readable records only.", color))
         lines.extend("  " + message for message in history.warnings[:3])
         if len(history.warnings) > 3:
             lines.append(f"  ... {len(history.warnings) - 3} additional warning(s)")
     if not records:
-        lines.append("No matching sessions.")
+        lines.append(paint("No matching sessions.", "hint", enabled=color))
         return "\n".join(lines) + "\n"
     activity = aggregate(records, project)
     names = sorted({name for record in records for name in record.projects})
@@ -46,13 +48,17 @@ def render_activity_report(
         f"Sessions: {activity.sessions}   Chunks: {chunk_count}"
         + (f"   Projects: {len(names)}" if project is None else " (matching project)")
     )
-    outcomes = ", ".join(f"{count} {status}" for status, count in sorted(activity.outcomes.items()))
+    outcomes = ", ".join(
+        f"{count} {outcome(status, enabled=color)}"
+        for status, count in sorted(activity.outcomes.items())
+    )
     lines.append("Session outcomes: " + outcomes + (" (whole sessions)" if project else ""))
     lines.append(
         "Chunk outcomes: "
         + (
             ", ".join(
-                f"{count} {status}" for status, count in sorted(activity.chunk_outcomes.items())
+                f"{count} {outcome(status, enabled=color)}"
+                for status, count in sorted(activity.chunk_outcomes.items())
             )
             or "no data"
         )
@@ -73,7 +79,13 @@ def render_activity_report(
         + " / -"
         + measure(activity.deleted, color=color)
     )
-    lines.append("Quota: shared-account observations, not project token costs; never summed.")
+    lines.append(
+        paint(
+            "Quota: shared-account observations, not project token costs; never summed.",
+            "hint",
+            enabled=color,
+        )
+    )
     for window in ("5h", "weekly"):
         comparable = sum(
             quota_delta(record.report.budget_before, record.report.budget_after, window).endswith(
@@ -100,17 +112,29 @@ def render_activity_report(
                     measure(contribution.tokens, color=color),
                 )
             )
-        lines.extend(["", *render_table(("Project", "Chunks", "Chunk time", "Tokens"), rows)])
+        table = render_table(("Project", "Chunks", "Chunk time", "Tokens"), rows)
+        table[0] = paint(table[0], "heading", enabled=color)
+        lines.extend(["", *table])
     if details:
         lines.extend(["", f"Latest sessions: showing {min(limit, len(records))}/{len(records)}"])
         for record in records[:limit]:
             lines.extend(session_detail(record, project=project, color=color))
     else:
         lines.append(
-            "\nUse --details or --session RUN_ID for work summaries and chunk observations."
+            paint(
+                "\nUse --details or --session RUN_ID for work summaries and chunk observations.",
+                "hint",
+                enabled=color,
+            )
         )
-    lines.append("\nRanges select invocation starts; unfinished durations remain unknown.")
-    return "\n".join(lines) + "\n"
+    lines.append(
+        paint(
+            "\nRanges select invocation starts; unfinished durations remain unknown.",
+            "hint",
+            enabled=color,
+        )
+    )
+    return labelled("\n".join(lines), enabled=color) + "\n"
 
 
 def session_detail(record: RunRecord, *, project: str | None, color: bool) -> list[str]:
@@ -119,7 +143,7 @@ def session_detail(record: RunRecord, *, project: str | None, color: bool) -> li
     label = "project contribution" if project and record.entrypoint == "work" else record.entrypoint
     lines = [
         f"\nSession: {record.run_id}",
-        f"{record.started_at}  {subject}  {label}  {record.status}",
+        f"{record.started_at}  {subject}  {label}  {outcome(record.status, enabled=color)}",
     ]
     if project is None:
         lines.append("Session time: " + measure(time, duration=True, color=color))
@@ -127,7 +151,13 @@ def session_detail(record: RunRecord, *, project: str | None, color: bool) -> li
         report = record.report
         if project:
             report = replace(report, chunks=matching_chunks(record, project))
-            lines.append("Only matching chunks below; quota observations remain shared-account.")
+            lines.append(
+                paint(
+                    "Only matching chunks below; quota observations remain shared-account.",
+                    "hint",
+                    enabled=color,
+                )
+            )
         lines.extend(
             report_lines(report, color, details=True, include_session_duration=project is None)
         )

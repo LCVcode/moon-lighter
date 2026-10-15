@@ -180,7 +180,9 @@ def test_log_hierarchy_manual_flattening_and_colors(tmp_path: Path) -> None:
     records = read_run_records(tmp_path)
     output = render_run_log(records, color=True)
     assert "  └─ 2026-01-01" in output
-    assert "Tokens: 100" in output
+    from moonlighter.text_layout import plain
+
+    assert "Tokens: 100" in plain(output)
     assert "(account)" not in output
     assert "Quota:" not in output
     assert "\033[33mdetailed log unavailable" in output

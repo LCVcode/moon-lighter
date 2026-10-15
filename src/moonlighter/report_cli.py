@@ -33,7 +33,8 @@ def configure_report_parser(parser: argparse.ArgumentParser) -> argparse.Action:
     parser.add_argument(
         "--all", action="store_true", help="Include routine skips retained in legacy history."
     )
-    parser.add_argument("--color", choices=("auto", "always", "never"), default="auto")
+    if not any("--color" in action.option_strings for action in parser._actions):
+        parser.add_argument("--color", choices=("auto", "always", "never"), default="auto")
     return project
 
 

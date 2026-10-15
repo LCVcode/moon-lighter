@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import textwrap
 
+from moonlighter.cli_output import labelled
 from moonlighter.colors import outcome
 from moonlighter.history_duration import format_elapsed
 from moonlighter.history_tree import TreeNode, render_tree
@@ -44,7 +45,7 @@ def metrics(
     )
     deltas = [quota_delta(before, after, window) for window in ("5h", "weekly")]
     deltas = [
-        warning(value, color) if value in ("no data", "unknown reset") else value
+        warning(value, color) if value in ("no data", "unknown reset", "reset/changed") else value
         for value in deltas
     ]
     deltas = ["−" + value if value.endswith("%") and value != "0.0%" else value for value in deltas]
@@ -59,7 +60,7 @@ def metrics(
     ]
     if quota:
         parts.append("Quota: " + ", ".join(quota))
-    return " · ".join(parts)
+    return labelled(" · ".join(parts), enabled=color)
 
 
 def report_lines(
@@ -132,7 +133,7 @@ def report_lines(
         nodes.append(TreeNode(detail_lines("error", report.error, width=columns - 5)))
     if report.stop_reason:
         nodes.append(TreeNode(detail_lines("stopped", report.stop_reason, width=columns - 5)))
-    return render_tree(nodes)
+    return labelled("\n".join(render_tree(nodes)), enabled=color).splitlines()
 
 
 def _context_nodes(

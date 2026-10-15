@@ -270,6 +270,18 @@ Moon refuses to overwrite existing destinations.
 
 ## Command reference
 
+All commands accept `--color auto|always|never`, before or after the command name.
+Automatic color requires a terminal and respects `NO_COLOR` and `TERM=dumb`;
+explicit `always` overrides those environment settings. Success is green, warnings
+yellow, failures red, and headings/labels cyan. Pipes stay plain by default.
+Generated completion scripts, startup snippets, systemd units, and version output
+always remain plain. See the [command-by-command color policy](docs/cli-colors.md).
+
+```bash
+moon config check --color always
+moon --color never report --details
+```
+
 ### `moon config init`
 
 Create a sample config at `~/.config/moon/config.toml` if one does not already exist.

@@ -15,6 +15,14 @@ from typing import Any, cast
 import argcomplete
 
 from moonlighter.budget import check_budget
+from moonlighter.cli_output import (
+    CliArgumentParser,
+    color_enabled,
+    command_colors,
+    labelled,
+    paint,
+    paint_priority,
+)
 from moonlighter.config import (
     Config,
     ConfigCheckResult,
@@ -93,10 +101,11 @@ def add_project_completer(action: argparse.Action) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level Moonlighter argument parser."""
-    parser = argparse.ArgumentParser(
+    parser = CliArgumentParser(
         prog="moon",
         description="Use surplus Codex budget to advance side projects during work windows.",
     )
+    parser.set_defaults(color="auto")
     parser.add_argument("--version", action="version", version=f"moon {_VERSION}")
 
     subcommands = parser.add_subparsers(dest="command")
@@ -205,12 +214,6 @@ def build_parser() -> argparse.ArgumentParser:
         "project", nargs="?", help="Optional project directory name."
     )
     add_project_completer(status_project_arg)
-    status_parser.add_argument(
-        "--color",
-        choices=("auto", "always", "never"),
-        default="auto",
-        help="Colorize status output.",
-    )
 
     log_parser = subcommands.add_parser("log", help="Show recent Moonlighter run history.")
     log_parser.add_argument(
@@ -220,12 +223,6 @@ def build_parser() -> argparse.ArgumentParser:
     add_project_completer(log_project_arg)
     log_parser.add_argument(
         "--status", choices=("skipped", "success", "failed", "running", "interrupted")
-    )
-    log_parser.add_argument(
-        "--color",
-        choices=("auto", "always", "never"),
-        default="auto",
-        help="Colorize missing or partial history data.",
     )
     log_parser.add_argument(
         "--all",
@@ -276,28 +273,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 def print_config_check(result: ConfigCheckResult) -> None:
     """Print a human-readable config-check result."""
-    print(f"Config: {result.config_path}")
+    print(paint(f"Config: {result.config_path}", "info"))
     if result.config is not None:
-        print(f"Project root: {result.config.project_root}")
+        print(paint(f"Project root: {result.config.project_root}", "info"))
         print(
-            "Runner: "
-            f"{result.config.runner.provider} / {result.config.runner.model} "
-            f"({result.config.runner.thinking})"
+            paint(
+                "Runner: "
+                f"{result.config.runner.provider} / {result.config.runner.model} "
+                f"({result.config.runner.thinking})"
+            )
         )
-        print(f"Runner image: {result.config.runner.image}")
+        print(paint(f"Runner image: {result.config.runner.image}", "info"))
 
     if not result.issues:
-        print("OK: config looks good.")
+        print(paint("OK: config looks good.", "success"))
         return
 
     for issue in result.issues:
         label = "ERROR" if issue.severity == "error" else "WARNING"
-        print(f"{label}: {issue.message}")
+        print(
+            paint(f"{label}: {issue.message}", "error" if issue.severity == "error" else "warning")
+        )
 
     if result.has_errors:
-        print("Config check failed.")
+        print(paint("Config check failed.", "error"))
     elif result.has_warnings:
-        print("Config check passed with warnings.")
+        print(paint("Config check passed with warnings.", "warning"))
 
 
 def handle_completion(shell: str) -> int:
@@ -343,7 +344,7 @@ def install_completion(shell: str, path: Path, *, assume_yes: bool) -> bool:
     if COMPLETION_BLOCK_START in existing and COMPLETION_BLOCK_END in existing:
         return False
     if not assume_yes:
-        response = input(f"Append Moon completion setup to {path}? [y/N] ")
+        response = input(paint(f"Append Moon completion setup to {path}? [y/N] ", "warning"))
         if response.strip().lower() not in {"y", "yes"}:
             raise CliError("completion setup cancelled")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -355,7 +356,11 @@ def install_completion(shell: str, path: Path, *, assume_yes: bool) -> bool:
 def handle_setup(command: str | None, shell: str | None, assume_yes: bool, print_only: bool) -> int:
     """Handle `moon setup ...` commands."""
     if command != "completion":
-        print("Usage: moon setup completion [--shell {bash,zsh,fish}] [--yes] [--print]")
+        print(
+            paint(
+                "Usage: moon setup completion [--shell {bash,zsh,fish}] [--yes] [--print]", "hint"
+            )
+        )
         return 2
     selected_shell = shell or detect_shell()
     snippet = completion_startup_snippet(selected_shell)
@@ -365,10 +370,10 @@ def handle_setup(command: str | None, shell: str | None, assume_yes: bool, print
     path = completion_startup_path(selected_shell)
     changed = install_completion(selected_shell, path, assume_yes=assume_yes)
     if changed:
-        print(f"Installed Moon completion for {selected_shell}: {path}")
-        print("Restart your shell or source the file to activate completion.")
+        print(paint(f"Installed Moon completion for {selected_shell}: {path}", "success"))
+        print(paint("Restart your shell or source the file to activate completion.", "hint"))
     else:
-        print(f"Moon completion already installed in {path}")
+        print(paint(f"Moon completion already installed in {path}", "hint"))
     return 0
 
 
@@ -382,7 +387,7 @@ def handle_service(
 ) -> int:
     """Handle `moon service ...`."""
     if command is None:
-        print("Usage: moon service {print,install,enable,disable,status,uninstall}")
+        print(paint("Usage: moon service {print,install,enable,disable,status,uninstall}", "hint"))
         return 2
 
     if command == "print":
@@ -398,41 +403,46 @@ def handle_service(
             return 0
         service_path, timer_path = install_units(moon_executable, interval)
         reload_systemd_user()
-        print(f"Installed service: {service_path}")
-        print(f"Installed timer: {timer_path}")
-        print("Timer is not enabled. Run `moon service enable` to start scheduled work.")
+        print(paint(f"Installed service: {service_path}", "success"))
+        print(paint(f"Installed timer: {timer_path}", "success"))
+        print(
+            paint(
+                "Timer is not enabled. Run `moon service enable` to start scheduled work.",
+                "warning",
+            )
+        )
         return 0
 
     if command == "enable":
         enable_timer()
-        print("Enabled Moonlighter timer.")
+        print(paint("Enabled Moonlighter timer.", "success"))
         return 0
 
     if command == "disable":
         disable_timer()
-        print("Disabled Moonlighter timer.")
+        print(paint("Disabled Moonlighter timer.", "warning"))
         return 0
 
     if command == "status":
-        print(format_service_status(), end="")
+        print(labelled(format_service_status(), enabled=color_enabled()), end="")
         return 0
 
     if command == "uninstall":
         try:
             disable_timer()
         except ServiceError as exc:
-            print(f"Warning: {exc}", file=sys.stderr)
+            print(paint(f"Warning: {exc}", "warning", stream=sys.stderr), file=sys.stderr)
         service_removed, timer_removed = uninstall_units()
         reload_systemd_user()
         if service_removed:
-            print("Removed moon.service.")
+            print(paint("Removed moon.service.", "success"))
         if timer_removed:
-            print("Removed moon.timer.")
+            print(paint("Removed moon.timer.", "success"))
         if not service_removed and not timer_removed:
-            print("No Moonlighter systemd units were installed.")
+            print(paint("No Moonlighter systemd units were installed.", "hint"))
         return 0
 
-    print("Usage: moon service {print,install,enable,disable,status,uninstall}")
+    print(paint("Usage: moon service {print,install,enable,disable,status,uninstall}", "hint"))
     return 2
 
 
@@ -451,7 +461,7 @@ def print_service_units(service_text: str, timer_text: str, unit: str) -> None:
 def format_service_status() -> str:
     """Format user systemd service status."""
     status = read_service_status()
-    lines = ["Moonlighter service", ""]
+    lines = [paint("Moonlighter service", "heading"), ""]
     lines.append(f"Service unit: {status.service_path}")
     lines.append(f"  installed: {_yes_no(status.service_installed)}")
     lines.append(f"  active: {_yes_no_unknown(status.service_active)}")
@@ -467,12 +477,12 @@ def format_service_status() -> str:
 
 
 def _yes_no(value: bool) -> str:
-    return "yes" if value else "no"
+    return paint("yes", "success") if value else paint("no", "warning")
 
 
 def _yes_no_unknown(value: bool | None) -> str:
     if value is None:
-        return "unknown"
+        return paint("unknown", "warning")
     return _yes_no(value)
 
 
@@ -483,12 +493,16 @@ def handle_config(command: str | None) -> int:
         existed = path.exists()
         written_path = write_sample_config(path)
         if existed:
-            print(f"Config already exists: {written_path}")
+            print(paint(f"Config already exists: {written_path}", "hint"))
             print_config_check(check_config(written_path))
         else:
-            print(f"Wrote sample config: {written_path}")
+            print(paint(f"Wrote sample config: {written_path}", "success"))
             print(
-                "Edit this file, create the configured project root, then run `moon config check`."
+                paint(
+                    "Edit this file, create the configured project root, "
+                    "then run `moon config check`.",
+                    "hint",
+                )
             )
         return 0
 
@@ -497,7 +511,7 @@ def handle_config(command: str | None) -> int:
         print_config_check(result)
         return 1 if result.has_errors else 0
 
-    print("Usage: moon config {init,check}")
+    print(paint("Usage: moon config {init,check}", "hint"))
     return 2
 
 
@@ -531,7 +545,7 @@ def handle_init(project_name: str) -> int:
     project_dir = resolve_project_dir(config, project_name)
     initialize_project(project_dir)
     open_editor_for_brief(project_dir)
-    print(f"Initialized project: {project_dir}")
+    print(paint(f"Initialized project: {project_dir}", "success"))
     return 0
 
 
@@ -560,7 +574,7 @@ def handle_brief(project_name: str) -> int:
         raise CliError(f"project does not exist: {project_dir}")
     initialize_project(project_dir)
     open_editor_for_brief(project_dir, required=True)
-    print(f"Brief: {brief_path(project_dir)}")
+    print(paint(f"Brief: {brief_path(project_dir)}", "info"))
     return 0
 
 
@@ -588,8 +602,8 @@ def handle_claim(path_text: str) -> int:
             shutil.move(str(destination), str(source))
         raise
 
-    print(f"Claimed project: {destination}")
-    print(f"Recorded claim source: {source}")
+    print(paint(f"Claimed project: {destination}", "success"))
+    print(paint(f"Recorded claim source: {source}", "info"))
     return 0
 
 
@@ -621,7 +635,7 @@ def handle_release(project_name: str, dest_text: str | None) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     shutil.move(str(project_dir), str(destination))
-    print(f"Released project: {destination}")
+    print(paint(f"Released project: {destination}", "success"))
     return 0
 
 
@@ -632,7 +646,7 @@ def handle_activate(project_name: str) -> int:
     project_dir = resolve_project_dir(config, project_name)
     initialize_project(project_dir)
     activate_project_state(project_dir)
-    print(f"Activated project: {project_dir}")
+    print(paint(f"Activated project: {project_dir}", "success"))
     return 0
 
 
@@ -655,11 +669,11 @@ def handle_priority(project_name: str | None, priority: str | None) -> int:
 
     if priority is None:
         state = load_project_state(state_path(project_dir))
-        print(f"{project_name}: {state.priority}")
+        print(paint(f"{project_name}: {paint_priority(state.priority)}"))
         return 0
 
     set_project_priority(project_dir, cast(Priority, priority))
-    print(f"Priority set: {project_name} -> {priority}")
+    print(paint(f"Priority set: {project_name} -> {paint_priority(priority)}", "success"))
     return 0
 
 
@@ -679,21 +693,21 @@ def render_priority_list(config: Config) -> str:
             continue
         grouped[state.priority].append(project.name)
 
-    lines = ["Priorities", ""]
+    lines = [paint("Priorities", "heading"), ""]
     for priority in PRIORITY_TIERS:
-        lines.append(f"{priority}:")
+        lines.append(paint_priority(priority) + ":")
         names = sorted(grouped[priority])
         if names:
             lines.extend(f"  - {name}" for name in names)
         else:
-            lines.append("  none")
+            lines.append(paint("  none", "hint"))
         lines.append("")
     if uninitialized:
-        lines.append("uninitialized:")
+        lines.append(paint("uninitialized:", "warning"))
         lines.extend(f"  - {name}" for name in sorted(uninitialized))
         lines.append("")
     if invalid:
-        lines.append("invalid:")
+        lines.append(paint("invalid:", "error"))
         lines.extend(f"  - {name}" for name in sorted(invalid))
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
@@ -748,7 +762,7 @@ def handle_run(project_name: str | None, chunk_minutes: int | None, ignore_budge
         entrypoint="run",
     )
     if result.skipped_reason is not None:
-        print(f"moon run skipped: {result.skipped_reason}")
+        print(paint(f"moon run skipped: {result.skipped_reason}", "warning"))
     return result.exit_code
 
 
@@ -773,17 +787,13 @@ def handle_tick(
         entrypoint="work",
     )
     if result.skipped_reason is not None:
-        print(f"moon work skipped: {result.skipped_reason}")
+        print(paint(f"moon work skipped: {result.skipped_reason}", "warning"))
     return result.exit_code
 
 
 def should_color(choice: str) -> bool:
     """Return whether CLI output should use ANSI color."""
-    if choice == "always":
-        return True
-    if choice == "never":
-        return False
-    return sys.stdout.isatty()
+    return color_enabled(choice)
 
 
 def handle_status(project_name: str | None, color_choice: str = "auto") -> int:
@@ -792,10 +802,13 @@ def handle_status(project_name: str | None, color_choice: str = "auto") -> int:
     check_budget(config)
     color = should_color(color_choice)
     if project_name is None:
-        print(render_global_status(config, color=color), end="")
+        print(labelled(render_global_status(config, color=color), enabled=color), end="")
     else:
         resolved = resolve_project_dir(config, project_name)
-        print(render_project_status(config, resolved.name, color=color), end="")
+        print(
+            labelled(render_project_status(config, resolved.name, color=color), enabled=color),
+            end="",
+        )
     return 0
 
 
@@ -804,7 +817,7 @@ def handle_pause_resume(project_name: str | None, paused: bool) -> int:
     action = "Paused" if paused else "Resumed"
     if project_name is None:
         set_global_paused(default_state_dir(), paused)
-        print(f"{action} Moonlighter.")
+        print(paint(f"{action} Moonlighter.", "warning" if paused else "success"))
         return 0
 
     config = load_valid_config()
@@ -816,18 +829,27 @@ def handle_pause_resume(project_name: str | None, paused: bool) -> int:
         set_project_paused(project_dir, True)
     else:
         activate_project_state(project_dir)
-    print(f"{action} project: {project_dir}")
+    print(paint(f"{action} project: {project_dir}", "warning" if paused else "success"))
     return 0
 
 
 def normalize_command_aliases(argv: list[str] | None) -> list[str] | None:
     """Map hidden/deprecated command aliases before argparse validation."""
     args = sys.argv[1:] if argv is None else list(argv)
-    if args and args[0] in {"light", "tick"}:
-        args[0] = "work"
+    index = 0
+    while index < len(args):
+        if args[index] == "--color":
+            index += 2
+        elif args[index].startswith("--color="):
+            index += 1
+        else:
+            if args[index] in {"light", "tick"}:
+                args[index] = "work"
+            break
     return args
 
 
+@command_colors
 def main(argv: list[str] | None = None) -> None:
     """Run the Moonlighter CLI."""
     parser = build_parser()

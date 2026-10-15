@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from moonlighter.budget import weekly_remaining_floor
+from moonlighter.cli_output import paint_priority
 from moonlighter.colors import BLUE, BOLD, CYAN, DIM, GREEN, MAGENTA, RED, YELLOW, style
 from moonlighter.config import Config, default_state_dir
 from moonlighter.history_status import (
@@ -73,7 +74,7 @@ def render_global_status(
     try:
         global_state = load_global_state(default_state_dir())
         if global_state.paused:
-            lines.append(f"Global pause: {style('paused', RED, enabled=color)}")
+            lines.append(f"Global pause: {style('paused', YELLOW, enabled=color)}")
     except RuntimeStateError as exc:
         lines.append(f"Global pause: {style(f'unknown ({exc})', RED, enabled=color)}")
 
@@ -91,7 +92,7 @@ def render_global_status(
         active_statuses = [status for status in project_statuses if status.section == "active"]
         if active_statuses:
             lines.append(style("Active:", *_section_style("active"), enabled=color))
-            lines.extend(_render_priority_groups(active_statuses))
+            lines.extend(_render_priority_groups(active_statuses, color=color))
 
         for section in (
             "paused",
@@ -110,7 +111,7 @@ def render_global_status(
     lines.append("")
     lines.extend(_render_last_known_budget(default_state_dir(), config=config, color=color))
     lines.append("")
-    lines.extend(global_history_lines(default_state_dir()))
+    lines.extend(global_history_lines(default_state_dir(), color=color))
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -158,7 +159,7 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
     )
     lines.append(f"Disposition: {disposition}")
     lines.append(f"Paused: {paused}")
-    lines.append(f"Priority: {status.state.priority}")
+    lines.append(f"Priority: {paint_priority(status.state.priority, enabled=color)}")
     lines.append(f"Guidance: {guidance}")
     lines.append(f"Brief: {brief_status}")
     if status.needs_brief and status.state.disposition == "active" and not status.state.paused:
@@ -168,7 +169,9 @@ def render_project_status(config: Config, project_name: str, *, color: bool = Fa
     lines.append(f"Pi session file: {status.state.pi_session_file or 'none'}")
     lines.append(f"Last claimed from: {status.state.last_claimed_from or 'none'}")
     lines.append("")
-    lines.extend(project_history_lines(default_state_dir(), project_name, status.state))
+    lines.extend(
+        project_history_lines(default_state_dir(), project_name, status.state, color=color)
+    )
     if status.state.disposition == "needs_direction":
         feedback = feedback_request_text(project_dir, status.state.disposition_summary)
         lines.append("")
@@ -337,7 +340,7 @@ def _parse_docker_labels(text: str) -> dict[str, str]:
     return labels
 
 
-def _render_priority_groups(statuses: list[ProjectStatus]) -> list[str]:
+def _render_priority_groups(statuses: list[ProjectStatus], *, color: bool = False) -> list[str]:
     lines: list[str] = []
     for priority in PRIORITY_TIERS:
         matching = sorted(
@@ -345,7 +348,7 @@ def _render_priority_groups(statuses: list[ProjectStatus]) -> list[str]:
             key=lambda status: status.name,
         )
         if matching:
-            lines.append(f"  {priority}:")
+            lines.append(f"  {paint_priority(priority, enabled=color)}:")
             lines.extend(f"    - {_global_project_label(status)}" for status in matching)
     return lines
 
@@ -372,7 +375,7 @@ def _disposition_style(disposition: str) -> tuple[str, ...]:
     return {
         "active": (GREEN,),
         "needs_direction": (MAGENTA,),
-        "complete": (BLUE,),
+        "complete": (GREEN,),
         "tabled": (BLUE,),
     }.get(disposition, ())
 
